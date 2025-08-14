@@ -47,4 +47,16 @@ extern "C" {
   void MFMLongJmpHere(jmp_buf buffer, const int toThrow) {
     longjmp(buffer,toThrow);
   }
+
+  void MFMDoFail(const char * file, const int line, const int code) {
+    fprintf(stderr, "\n%s:%d: FAIL CODE %d: %s\n",file,line,code,MFMFailCodeReason(code));
+    ((MFMPtrToErrEnvStackPtr && *MFMPtrToErrEnvStackPtr)?          
+     ((*MFMPtrToErrEnvStackPtr)->file = file,                    
+      (*MFMPtrToErrEnvStackPtr)->lineno = line,                  
+      /*  (*MFMPtrToErrEnvStackPtr)->backtraceSize =  */             
+      /*  backtrace((*MFMPtrToErrEnvStackPtr)->backtraceArray,  */   
+      /*         MAX_BACKTRACE_LEVELS), */                           
+      MFMLongJmpHere((*MFMPtrToErrEnvStackPtr)->buffer, code),0) :                                    
+     (MFMFailHere(file,line, code),0));
+  }
 }

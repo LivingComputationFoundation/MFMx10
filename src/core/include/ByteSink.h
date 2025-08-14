@@ -129,7 +129,10 @@ namespace MFM {
      */
     void Copy(ByteSource & restOfThis) ;
 
-
+    inline void Print(u8 ch) { WriteByte(ch); }
+    inline void Print(const char ch) { WriteByte((u8) ch); }
+    inline void Print(const char ch, Format::Type code) { Print((u32) ch, code); }
+    inline void Print(uptr p, Format::Type code) { Print((u32) p, code); }
     void Print(const char * str, s32 fieldWidth = -1, u8 padChar = ' ');
     void Print(const u8 * str, u32 len, s32 fieldWidth = -1, u8 padChar = ' ');
     void Print(s32 decimal, s32 fieldWidth = -1, u8 padChar = ' ');
@@ -150,7 +153,7 @@ namespace MFM {
 
     void Println(u8 byte)
     {
-      Print(byte);
+      WriteByte(byte);
       Println();
     }
     void Println(const char * str)          ///< \eq #Print(const char * str) followed by #Println().

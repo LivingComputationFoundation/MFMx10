@@ -31,6 +31,10 @@
 
 namespace MFM {
 
+/* THIS IS NOT REALLY THE PLACE FOR THESE BUT WE WANT THEM LOW-LEVEL */
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+
 typedef int8_t  s8;                    /**< Signed 8 bit type */
 typedef int16_t s16;                   /**< Signed 16 bit type */
 typedef int32_t s32;                   /**< Signed 32 bit type */

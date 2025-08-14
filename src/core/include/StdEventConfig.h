@@ -30,11 +30,11 @@
 #include "AtomConfig.h"
 #include "EventConfig.h"
 #include "Site.h"
-#include "P3Atom.h"
+#include "P4Atom.h"
 
 namespace MFM {
-  typedef P3Atom StdAtom;
-  typedef Site<P3AtomConfig> StdSite;
+  typedef P4Atom StdAtom;
+  typedef Site<P4AtomConfig> StdSite;
   typedef EventConfig<StdSite, 4> StdEventConfig;
 }
 

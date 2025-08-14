@@ -76,7 +76,7 @@ namespace MFM {
     }
 
     template <class AC>
-    bool LoadConfig(LineCountingByteSource & bs, AtomTypeFormatter<AC> & atf)
+    bool LoadConfig(ByteSource & bs, AtomTypeFormatter<AC> & atf)
     {
       u32 tmp_m_touchType;
       if (2 != bs.Scanf(",%D", &tmp_m_touchType)) return false;
@@ -116,7 +116,7 @@ namespace MFM {
     }
 
     template<class AC>
-    bool LoadConfig(LineCountingByteSource & bs, AtomTypeFormatter<AC> & atf)
+    bool LoadConfig(ByteSource & bs, AtomTypeFormatter<AC> & atf)
     {
       return m_touchSensor.LoadConfig(bs,atf);
     }

@@ -39,7 +39,7 @@ namespace MFM {
   BitVector<B>::BitVector(const u32 value)
   {
     Clear();
-    u32 startIdx = (u32) MAX(0, ((s32) B) - 32);
+    u32 startIdx = (u32) MAX((s32) 0, ((s32) B) - 32);
     u32 length = B - startIdx;
     Write(startIdx, length, value);
   }

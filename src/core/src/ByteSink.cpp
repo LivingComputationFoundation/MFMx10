@@ -7,8 +7,8 @@
 #include "Logger.h"
 
 #include <stdlib.h>   /* for free */
-#include <execinfo.h> /* for backtrace_symbols */
-#include <dlfcn.h>    /* for dladdr */
+//AHAX NO EXECINFO #include <execinfo.h> /* for backtrace_symbols */
+//AHAX NO THIS.. #include <dlfcn.h>    /* for dladdr */
 #include <cxxabi.h>   /* for __cxa_demangle */
 
 namespace MFM {
@@ -177,7 +177,7 @@ namespace MFM {
 
   void ByteSink::PrintLexDigits(u32 digits) {
     if (digits > 8) {
-      Print('9', Format::BYTE);
+      WriteByte('9');
       Print(digits, Format::LEX32);
     } else {
       Print(digits+'0', Format::BYTE);
@@ -449,7 +449,7 @@ XXX UPDATE
         if (p == '\n')          // '\n's _in_the_format_string_ are
           Println();            // treated as packet delimiters!
         else
-          Print(p,Format::BYTE);
+          WriteByte(p);
         continue;
       }
 
@@ -588,7 +588,7 @@ XXX UPDATE
     }
 
     case '%':
-      Print(p, Format::BYTE);
+      Print(p);
       break;
 
     default:                    // Either I don't know that code, or you're bogus.
@@ -611,6 +611,8 @@ XXX UPDATE
 
   void DumpBacktrace(ByteSink & bt, void * const * backtraceArray, unsigned backtraceSize)
   {
+    FAIL(INCOMPLETE_CODE);
+#if 0    
     char ** strings = backtrace_symbols (backtraceArray, backtraceSize);
 
     for (u32 i = 0; i < backtraceSize; i++) {
@@ -628,6 +630,6 @@ XXX UPDATE
         bt.Printf(" -> %2d: %s\n", i, strings[i]);
     }
     free (strings);
+#endif
   }
-
 }

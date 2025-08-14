@@ -3,6 +3,8 @@
 *.lo
 *.o
 
+*__pycache__*
+
 # Compiled Dynamic libraries
 *.so
 *.dylib

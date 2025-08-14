@@ -19,12 +19,15 @@ ALLDEP += $(HEADERS)
 
 all:	$(ARCHIVEPATH) commondeps
 
+run:	$(MAKE_RUN_DEPS)
+	$(MAKE_RUN_CMD)
 
 commondeps:	FORCE
 	mkdir -p $(BASEDIR)/res/elements
 
 $(ARCHIVEPATH):	$(BUILDDIR) $(OBJECTS)
 	$(AR) ruc "$@" $(OBJECTS)
+	$(SIZE) "$@"
 
 clean:
 	rm -f $(OBJECTS)

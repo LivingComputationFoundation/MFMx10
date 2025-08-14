@@ -27,7 +27,7 @@ include $(BASEDIR)/src/platform-$(MFM_TARGET)/MakePlatform.mk
 # not when I build locally! :( Gah!  See 'EXTRA DEFINES', below.  Drop
 # the override bomb!)
 override INCLUDES+=$(EXTERNAL_INCLUDES)
-override INCLUDES+=-I include
+override INCLUDES+=-I $(BASEDIR)/gen -I include
 
 ### EXTRA DEFINES
 # Argh, DEFINES is seen as user-set and make is ignoring our changes.
@@ -89,7 +89,7 @@ override CPPFLAGS+=$(INCLUDES)
 override CFLAGS+=$(INCLUDES)
 
 ### DYNAMIC LOADING
-LDFLAGS+=-rdynamic
+# NOT FOR TENSIX LDFLAGS+=-rdynamic
 
 ### COMPONENT-SPECIFIC STUFF
 

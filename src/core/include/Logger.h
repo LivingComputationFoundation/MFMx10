@@ -32,7 +32,7 @@
 #include "ByteSink.h"
 #include "ByteSerializable.h"
 #include "Util.h"
-#include "Mutex.h"
+//#include "Mutex.h"
 #include <stdarg.h>
 #include <strings.h> /* for strcasecmp */
 #include <stdlib.h>  /* for abort(), strtol() */
@@ -348,7 +348,7 @@ namespace MFM
     {
       if (IfLog(level))
       {
-        Mutex::ScopeLock lock(m_mutex); // Hold lock for this block
+        //        Mutex::ScopeLock lock(m_mutex); // Hold lock for this block
         unwind_protect(
         {
           abort(); // Logger is not prepared to handle failures during printing!
@@ -376,11 +376,11 @@ namespace MFM
      * @param ap The variadic argument list describing the message to
      *           be logged.
      */
-    void Vreport(Level level, const char * format, va_list & ap)
+    void __attribute__ ((noinline)) Vreport(Level level, const char * format, va_list & ap)
     {
       if (IfLog(level))
       {
-        Mutex::ScopeLock lock(m_mutex); // Hold lock for this block
+        //        Mutex::ScopeLock lock(m_mutex); // Hold lock for this block
         unwind_protect(
         {
           abort(); // Logger is not prepared to handle failures during printing!
@@ -503,7 +503,7 @@ namespace MFM
      * A lock to ensure only one thread does logging at a time; the
      * underlying ByteSink routines are not thread-safe.
      */
-    Mutex m_mutex;
+    //Mutex m_mutex;
 
     class DefaultTimeStamper : public ByteSerializable
     {

@@ -93,7 +93,7 @@ namespace MFM
       m_base.SaveConfig(bs, atf);
     }
 
-    bool LoadConfig(LineCountingByteSource& bs, AtomTypeFormatter<AC> & atf)
+    bool LoadConfig(ByteSource& bs, AtomTypeFormatter<AC> & atf)
     {
       u32 tmp_m_isLiveSite;
       if (2 != bs.Scanf(",%D", &tmp_m_isLiveSite)) return false;

@@ -48,6 +48,8 @@ namespace MFM
     }
   }
 
+  extern "C" { int nanosleep (const struct timespec  *rqtp, struct timespec *rmtp); }
+
   void Sleep(u32 seconds, u64 nanos)
   {
     struct timespec tspec;
@@ -55,6 +57,7 @@ namespace MFM
     tspec.tv_nsec = nanos;
 
     nanosleep(&tspec, NULL);
+    //    clock_nanosleep(CLOCK_MONOTONIC,0,&tspec,NULL);
   }
 
   u32 InterpolateColors(const u32 color1, const u32 color2, const u32 percentOfColor1)

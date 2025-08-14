@@ -33,7 +33,7 @@
 #include "Atom.h"
 #include "BitVector.h"
 #include "ByteSerializable.h"
-#include "LineCountingByteSource.h"
+//#include "LineCountingByteSource.h"
 
 namespace MFM
 {
@@ -60,7 +60,7 @@ namespace MFM
 
     /**
        Read an atom type name (in some unspecified format) off the
-       given LineCountingByteSource.  Return false (perhaps with an
+       given ByteSource.  Return false (perhaps with an
        error message issued) if no legal element name can be read, in
        which case destAtom is unaltered.  Otherwise, set destAtom to a
        default atom of the type identified by the read name, and
@@ -69,7 +69,7 @@ namespace MFM
 
        \sa PrintAtomType()
      */
-    virtual bool ParseAtomType(LineCountingByteSource & bs, T & destAtom) = 0;
+    virtual bool ParseAtomType(ByteSource & bs, T & destAtom) = 0;
 
     /**
        Print the name (in some unspecified format) of the given atom

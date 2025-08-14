@@ -64,7 +64,7 @@ namespace MFM
      *
      * @returns the next byte from the front of this CharBufferByteSource .
      */
-    virtual int ReadByte()
+    virtual s32 ReadByte()
     {
       if (m_read >= m_length)
       {

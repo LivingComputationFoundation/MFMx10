@@ -18,7 +18,7 @@ export PLATFORM
 
 export BASEDIR=$(CURDIR)
 
-.PHONY:	$(PLATFORMS) all clean realclean tar
+.PHONY:	$(PLATFORMS) all clean realclean tar run
 
 sim:	PLATFORMS:=sim
 
@@ -30,6 +30,8 @@ doc:	FORCE
 	doxygen
 
 clean:  $(PLATFORMS)
+
+run:  $(PLATFORMS)
 
 realclean:  $(PLATFORMS)
 	rm -f bin/*

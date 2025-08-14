@@ -29,3 +29,4 @@ $(BUILDDIR)/$(COMPONENTNAME).o:	src/main.cpp $(ALLDEP) $(BUILDDIR)/%.d
 $(BINDIR)/$(COMPONENTNAME):	$(BUILDDIR)/$(COMPONENTNAME).o $(ALLDEP) $(ARCHIVES)
 	mkdir -p $(BINDIR)
 	$(GPP) $(LDFLAGS) $(BUILDDIR)/$(COMPONENTNAME).o $(LIBS) -o $@
+	$(SIZE) $@ | tail -1 | echo $$(date '+%s ') $$(cat -) | tee -a "$@-builds.dat"

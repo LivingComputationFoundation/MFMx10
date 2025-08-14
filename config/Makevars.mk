@@ -1,3 +1,26 @@
+# HACKS
+MAKE_RUN_DEPS:=all
+MAKE_RUN_CMD:=echo No run cmd
+
+# What we need to build
+COMPILER_BASE_DIR:=/data/ackley/PART4/code/D/tt-metal/build_Release/libexec/tt-metalium/runtime/sfpi/compiler
+CC:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-gcc
+CFLAGS:=-Os
+CXX:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-g++
+CXXFLAGS:=-Os
+LD:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-ld
+AR:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-ar
+SIM:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-run
+SIZE:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-size
+OBJDUMP:=$(COMPILER_BASE_DIR)/bin/riscv32-tt-elf-objdump
+
+#IN MFM TERMS
+NATIVE_GCC:=$(CXX)
+NATIVE_GPP:=$(CXX)
+NATIVE_GCC_FLAGS:=$(CXXFLAGS)
+NATIVE_GPP_FLAGS:=$(CXXFLAGS)
+NATIVE_LD:=$(LD)
+
 # All directories mentioned here are relative to the project root
 ifndef BASEDIR
   $(error BASEDIR should be defined before Makevars.mk is included)
@@ -15,6 +38,7 @@ ifndef DEBUG
     COMMANDS := 1
   endif
   OPTFLAGS += -O99 --param inline-unit-growth=1000 --param large-function-growth=50000
+#  OPTFLAGS += -Os -g
 #  OPTFLAGS += -Winline
 
 # Can't just plop in whizzo sse instruction set flags given we're
@@ -60,15 +84,20 @@ endif
 
 # Common flags: All about errors -- let's help them help us
 # Also: We need pthread!
-COMMON_CFLAGS+=-Wall -pedantic -Werror -Wundef -D SHARED_DIR=\"$(SHARED_DIR)\" -pthread
+COMMON_CFLAGS+=-Wall -ansi -pedantic -Werror -Wundef -D SHARED_DIR=\"$(SHARED_DIR)\" -pthread
+#COMMON_CFLAGS+=-Wall -pedantic -Werror -Wundef -D SHARED_DIR=\"$(SHARED_DIR)\" 
 COMMON_FLAGS+= -Wextra -Wno-unused-parameter -Wno-ignored-qualifiers
 # not reliable enough: COMMON_CPPFLAGS+=-Wmissing-noreturn -ansi -pedantic -Wall -Werror -D SHARED_DIR=\"$(SHARED_DIR)\" -pthread
-COMMON_CPPFLAGS+=-ansi -pedantic -Wall -Werror -D SHARED_DIR=\"$(SHARED_DIR)\" -pthread
-COMMON_LDFLAGS+=-Wl,--fatal-warnings -pthread
+#AHAX-RISCV NO PTHREAD COMMON_CPPFLAGS+=-ansi -pedantic -Wall -Werror -D SHARED_DIR=\"$(SHARED_DIR)\" -pthread
+COMMON_CPPFLAGS+=-std=c++11 -pedantic -Wall -Werror -D SHARED_DIR=\"$(SHARED_DIR)\" 
+#AHAX-RISCV NO PTHREAD COMMON_LDFLAGS+=-Wl,--fatal-warnings -pthread
+COMMON_LDFLAGS+=-Wl,--fatal-warnings 
 # Urgh gcc 8.3 warns about parens I want to keep
 COMMON_CPPFLAGS+=-Wno-parentheses
 # 202410250212 Urrgh gcc 13.2.0 gives some aggravating these - 
 COMMON_CPPFLAGS+= -Wno-overloaded-virtual
+# 202506211254 avoid 'template-id not allowed for constructor in C++20 [-Werror=template-id-cdtor]'
+COMMON_CPPFLAGS+= -Wno-template-id-cdtor
 # 202103050700 except gcc-5.4.0 (Ubuntu 16.04) doesn't have -Wrestrict
 # so move these flags down to src/drivers/mfmt2 for the tile
 # 202101190758 gcc issued buggy warning/error on memcpy, so:
@@ -76,21 +105,21 @@ COMMON_CPPFLAGS+= -Wno-overloaded-virtual
 #COMMON_CPPFLAGS+= -std=c++11
 
 # Ubuntu 12.04 needs this for clock_gettime
-override LIBS+=-lrt
+#override LIBS+=-lrt
 
 #### DYNAMIC LOADING
-override LIBS+=-ldl
+#override LIBS+=-ldl
 
 # Native tool chain
-NATIVE_GCC:=gcc
-NATIVE_GPP:=g++
-NATIVE_GCC_CFLAGS:=$(COMMON_CFLAGS)
-NATIVE_GCC_CPPFLAGS:=$(COMMON_CPPFLAGS)
-NATIVE_GCC_LDFLAGS:=$(COMMON_LDFLAGS)
-NATIVE_GCC_DEFINES:=
-NATIVE_GCC_OPTS:=$(OPTFLAGS)
-NATIVE_GCC_DEBUGS:=
-NATIVE_LD:=ld
+#DEFINED ABOVE NATIVE_GCC:=gcc
+#DEFINED ABOVE NATIVE_GPP:=g++
+NATIVE_GCC_CFLAGS+=$(COMMON_CFLAGS)
+NATIVE_GCC_CPPFLAGS+=$(COMMON_CPPFLAGS)
+NATIVE_GCC_LDFLAGS+=$(COMMON_LDFLAGS)
+NATIVE_GCC_DEFINES+=
+NATIVE_GCC_OPTS+=$(OPTFLAGS)
+NATIVE_GCC_DEBUGS+=
+#DEFINED ABOVE NATIVE_LD:=ld
 
 # Cross tool chain
 ## (FUTURE EXPANSION OPTION WE NEED TO PRESERVE)

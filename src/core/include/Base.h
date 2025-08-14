@@ -29,7 +29,7 @@
 
 #include "Sense.h"
 #include "ByteSink.h"
-#include "LineCountingByteSource.h"
+#include "ByteSource.h"
 #include "AtomSerializer.h"
 
 namespace MFM {
@@ -82,7 +82,7 @@ namespace MFM {
       m_sensory.SaveConfig(bs, atf);
     }
 
-    bool LoadConfig(LineCountingByteSource & bs, AtomTypeFormatter<AC> & atf)
+    bool LoadConfig(ByteSource & bs, AtomTypeFormatter<AC> & atf)
     {
       if (1 != bs.Scanf(",")) return false;
 
