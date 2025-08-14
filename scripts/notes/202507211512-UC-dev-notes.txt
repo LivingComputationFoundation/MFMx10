@@ -1,0 +1,1416 @@
+{82}  -*-  mode: text; fill-column: 50;  -*-
+[0:
+
+Mon Jul 21 15:12:27 2025 OK so I've lost myself in
+complexity in the current UC.py spike. Need to
+redo with more better names and structures.
+
+Here to restate desires and rough that out.[1:
+
+Mon Jul 21 15:16:53 2025 Restate current main
+flow:
+
+ - load code .dtoml
+ - defineAllClasses:
+   = check class type quark/element/transient
+   = init self.classes[name]
+ ..
+
+[2:
+
+Mon Jul 21 15:19:10 2025 OK so we still have the
+question: Are we building a whole new tree, or
+elaborating the dtoml tree? I always build a new
+tree, and that's always super-confusing.. Should
+we commit now to trying hard to elaborate the
+dtoml tree instead?
+
+I think we should.
+
+Let's review the (central portions of the) dtoml
+tree:
+
+ main.codeCfg = Config.Config()..
+ main.codeCfg.hash = <loaded dtoml>
+    'Class' : { 'Y2' : { 'has' : { .. } },
+                'Y3' : { .. }
+                .. }
+
+[3:
+
+Mon Jul 21 15:27:24 2025 And now I'm already
+rethinking that 'I think we should'.
+
+I think maybe instead we should think of a
+standalone internal data structure we'd be happy
+to generate code from, and then think about
+implementing that with proper classes and names,
+while thinking about mapping the dtoml codeCfg
+into that structure.
+
+STRUCTURE WE WANT:
+
+UC:
+  .allUClasses = { 'classname' : UClass }
+
+  .getUClass(self,ucname):
+    ret = self.allUClasses.get(ucname)
+    if ret is None:
+      ret = UClass(ucname)
+      self.allUClasses[ucname] = ret
+    return ret
+
+UClass:
+  .ucname
+  .uclassid
+ # .directBaseList = [ 'Me', 'Base', 'UrSelf' ] -- OR
+  .directBaseList = [ UC.getClass('Me'), UC.getClass('Base'), UC.getClass('UrSelf') ]
+  .directDataMembers = { 'member' : UCMember() }
+
+
+
+:3]
+:2]
+
+
+:1]
+
+:0]
+[4:
+
+Tue Jul 22 09:53:57 2025 Now I'm wondering if we
+could/should call the prims 'UClass' as well. Go
+ahead and give them classids and so forth. And
+some kind of primitive flag, and block subclassing
+them (almost surely..) and so forth.
+
+I think let's try it.
+
+:4]
+[5:
+
+Tue Jul 22 16:24:21 2025 So (flag moved) we are
+trying prims-as-classes here and currently
+wondering about sizes. Is Int(32) the same classid
+as Int(3)?
+
+ - If so, how do you know the size of any
+   particular instance of that 'class'?
+
+ - If not, we're proposing to burn dozens or
+   scores of classids to distinguish Int(63) from
+   Int(62) and so on?
+
+We wanted to only have like 256 classids total.
+
+[6:
+
+Tue Jul 22 16:28:48 2025 If we kept prims separate
+how would we do it?
+
+I guess if we had a special case saying 'context
+must provide size', then we could go with one
+classid for Int and one for Unsigned and so on..
+
+And then a data member (say) with a UVal that's a
+prim would have additional state saying it's 7b or
+whatever. And that data member-level info would
+get used while assembling the pos/siz of the
+corresponding class, and for all the pos/siz of
+the urefs involving that member.
+
+So all the extra hair would get flattened out by
+the time it's just ustg#/uref# format..
+
+:6]
+
+:5]
+[7:
+
+Fri Jul 25 23:00:02 2025 OK it's (long past) time
+to turn around and look at the to-be-generated
+stuff from the point of view of a computation
+trying to use it. In particular, we're talking
+about implementations of the '.' operator for
+member (and base) selection.
+
+The most basic aspect of it is: From a URef, we
+wish to obtain a new URef that refers to a data
+member of the prior URef. Or, we may wish to call
+a method off of the given URef, and we want to
+obtain the proper method.
+
+So what could our still-entirely-hypothetical
+'generated urefinfo tables' look like to enable
+such operations?
+[8:
+
+Fri Jul 25 23:27:59 2025 Access pattern:
+
+ stgnum ->          (via ew, atom register, temp..)
+   actual stg ->
+     whole object uclassid ->      (from atom type or somehow predeclared)
+       uclassid's whole object reftable(s)
+
+ refnum ->
+   urefinfo ->
+     base class uclassid
+      + pos & size of base class in whole object
+      +
+
+[9:
+
+Sat Jul 26 02:13:06 2025 So for data members we
+need the 'whole object' interpretation of a
+uclassid, but for base classes we need 'direct
+members' interpretation of a uclassid.
+
+How shall we be systematic about that? A dorky
+'whole object' flag or something?
+
+[10:
+
+Sat Jul 26 14:23:39 2025 Let's do a fucking
+example.
+
+X! -> size of X direct data members
+X+ -> X! plus sizes of each base B!
+
+A! 15b A+ 18b     B! 3b B+ 17b          C! 5b C+ 14b     D! 9b D+ 9b
+
+A is B, UrSelf    B is C, D             C is D           D is UrSelf
+A.mb is Bool(1)   B.mU is Unsigned(3)   C.mI is Int(5)   D.mUU is Unsigned(9)
+A.mC is C
+
+refs(A+,0): (going breadth-first?)
+ [A+, A,        0, 18]          A, whole object
+ [Bool+, A.mB,  0,  1]          mB, whole object
+ [C+, A.mC,     1, 14]          mC, whole object
+ [B!, A.B,     15,  3]          A.B, direct members
+ [U3+, B.mU,   15,  3]          A.B.mU, whole object
+
+
+X ax;
+X! 10b, X+ 23b     Y! 6b, Y+ 13b          Z! 7b, Z+ 7b
+X is Y, Z          Y is Z                 Z
+  X.mInt Int(3)      Y.mUns Unsigned(6)     mBool Bool(7)
+  X.mZ is Z
+[12:
+
+Sat Jul 26 23:22:08 2025 Trying again.
+
+"R(thing, xtype, pos) : [xtype, pos, size]"
+
+to visit "X+ x;" at pos, depth first
+
+visit(X+,0)
+
+(0) yield [X+, pos, siz(X+)]
+(1) for each base Y! of X+,
+      visit(X.Y!, pos)
+      pos += siz(X.Y!)
+(2) for each data member Z of X!,
+      visit(X.Z, pos)
+      pos += siz(X.Y!)
+
+UClass -
+def visitClassPlus(self,pos,seenBases):
+  for bbang in self.allBases:
+    if bbang in seenBases:
+      continue
+    seenBases[bbang] = True
+    pos = bbang.visitClassBang(pos)
+  return pos
+
+def visitClassBang(self,pos):
+  yield [BANG, self, pos, self.totalDirectBits]
+  for dm,ulvs in self.directMembers.items():
+    pos = ulvs.visitULVal(pos)
+
+
+ULVal -
+def visitULVal(self,pos):
+  
+
+
+from ab.visitBase(ab,pos,seen)
+
+
+
+def visitBase(self,tbang,pos,seen
+
+     
+(3) return 
+
+
+R(ax, X+, 0)
+ -> R(ax,X!, 0)  
+
+:12]
+
+
+let's try depth-first first
+refs(ax, X+, 0) ->
+ refs(ax, X!, 0) ->
+   refs(ax.mInt+, Int(3)+, 0) ->
+     refs(ax.mInt+.Int(3)!, 0) ->
+      [Int(3), 0, 3]
+   refs(ax.mZ,Z+,3) ->
+     refs(ax.mZ,Z!, 3) ->
+       refs(ax.mZ.mBool+, Bool(7)+, 3) ->
+         refs(ax.mZ.mBool!, Bool(7)!, 3) ->
+          [Bool(7), 3, 7]
+      {ax.mZ.Z!} [Z!, 3, 7]
+      {ax.mZ.Z+} [Z+, 3, 7]
+    {ax [X!, 0, 10]
+ refs(Y!, 10) ->
+   refs(Uns(6), 10) -> [Uns(6), 10, 6]
+   -> [Y!, 10, 6]
+ refs(Z!, 16) ->
+   refs(Bool(7)+, 16) ->
+     refs(Bool(7)!, 16) -> [Bool(7), 16, 7]
+   -> [Z!, 16, 7]
+ -> [X+, 0 23]
+
+[11:
+
+Sat Jul 26 16:01:21 2025 Wow did we actually get
+to the bottom of that? Our resulting urefs are:
+
+refs(X+, 0) ->
+  X.mInt    : [Int(3), 0, 3]
+  X.Z.mBool : [Bool(7), 3, 7]
+  X.Z!      : [Z!, 3, 7]
+  X!        : [X!, 0, 10]
+  X.Y.mUns  : [Uns(6), 10, 6]
+  X.Y!      : [Y!, 10, 6]
+  Z.mBool : [Bool(7), 16, 7]
+  X.Z!    : [Z!, 16, 7]
+  X+      : [X+, 0 23]
+
+:11]
+
+
+:10]
+
+:9]
+:8]
+:7]
+[13:
+
+Sun Jul 27 13:27:57 2025 OK so we're finally in
+the ballpark of plausible for enumerating urefs.
+
+Obvious issue at the moment is that primitive data
+member sizes are reported incorrectly, even though
+the calculation of the sum of them looks okay.
+
+:13]
+[14:
+
+Mon Jul 28 01:05:37 2025 OK, we've moved to
+../UC12/ to continue here, leaving UC11 to demo
+plausible uref enumeration (after we fixed the
+prim sizes thing).
+
+So goals for UC12 could include
+
+ - spike support for member select '.' on uref
+ - c++ code gen?
+
+[15:
+
+Mon Jul 28 01:42:40 2025 I think the main thing is
+some kind of member select demo.
+
+ - How do we represent a 'member' in our demo? I
+   guess just as a string, to start?
+
+ - so we want something like
+     dref(urefi,strmemb) -> urefo
+   or None or exception or whatever
+
+and we'll be okay using whatever info we've
+collected so far in python, to do that. And so
+this spike will help tell us what we'll want to do
+and do fast in C++ or whatever down the road.
+
+And live happily ever after.
+
+[16:
+
+Mon Jul 28 02:15:12 2025 So, first step would be
+input validation: Is strmemb really a member of
+urefi?
+
+Now, the way ulam works is we can refer to any
+member of a base class, as well any direct member.
+
+Let's find an example.
+[17:
+
+Mon Jul 28 02:19:48 2025 So, here's what we
+currently get for the
+MFMx10/src/spikes/riscv10/code/riscv10.dtoml input
+for 'BigTrans':
+
+    UR/BigTrans 
+      (URI #0 @0 +65 BigTrans#15/BigTrans#15 'BigTrans*')
+      (URI #1 @0 +61 BigTrans#15/BigTrans#15 'BigTrans!')
+      (URI #2 @0 +18 EltWithAQFoo#14/EltWithAQFoo#14 'EltWithAQFoo*')
+      (URI #3 @0 +17 EltWithAQFoo#14/EltWithAQFoo#14 'EltWithAQFoo!')
+      (URI #4 @0 +10 QFoo#12/QFoo#12 'QFoo*')
+      (URI #5 @0 +9 QFoo#12/QFoo#12 'QFoo!')
+      (URI #6 @0 +9 QFoo#12/Unsigned#2 'mDataqfoo')
+      (URI #7 @9 +1 QFoo#12/QDebug#11 'QDebug!')
+      (URI #8 @9 +1 QFoo#12/Bool#3 'mEnable')
+      (URI #9 @10 +0 QFoo#12/UrSelf#4 'UrSelf!')
+      (URI #10 @10 +7 EltWithAQFoo#14/Int#1 'mCounter')
+      (URI #11 @17 +1 EltWithAQFoo#14/QDebug#11 'QDebug!')
+      (URI #12 @17 +1 EltWithAQFoo#14/Bool#3 'mEnable')
+      (URI #13 @18 +0 EltWithAQFoo#14/UrSelf#4 'UrSelf!')
+      (URI #14 @18 +10 DReg#16/DReg#16 'DReg*')
+      (URI #15 @18 +0 DReg#16/DReg#16 'DReg!')
+      (URI #16 @18 +9 DReg#16/QFoo#12 'QFoo!')
+      (URI #17 @18 +9 DReg#16/Unsigned#2 'mDataqfoo')
+      (URI #18 @27 +1 DReg#16/QDebug#11 'QDebug!')
+      (URI #19 @27 +1 DReg#16/Bool#3 'mEnable')
+      (URI #20 @28 +0 DReg#16/UrSelf#4 'UrSelf!')
+      (URI #21 @28 +33 Sorter#17/Sorter#17 'Sorter*')
+      (URI #22 @28 +32 Sorter#17/Sorter#17 'Sorter!')
+      (URI #23 @28 +32 Sorter#17/Int#1 'mData')
+      (URI #24 @60 +1 Sorter#17/QDebug#11 'QDebug!')
+      (URI #25 @60 +1 Sorter#17/Bool#3 'mEnable')
+      (URI #26 @61 +0 Sorter#17/UrSelf#4 'UrSelf!')
+      (URI #27 @61 +1 BigTrans#15/QDebug#11 'QDebug!')
+      (URI #28 @61 +1 BigTrans#15/Bool#3 'mEnable')
+      (URI #29 @62 +0 BigTrans#15/UrSelf#4 'UrSelf!')
+      (URI #30 @62 +3 BigTrans#15/QBar#13 'QBar!')
+      (URI #31 @62 +3 BigTrans#15/Bool#3 'mDongo')
+
+and of course we should not start with that but
+you know me. We'll scale back to a smaller example
+soon enough.
+
+Suppose we have URI #15/0, which we could declare
+as a shorthand for
+
+      (URI #0 @0 +65 BigTrans#15/BigTrans#15 'BigTrans*')
+
+meaning #classid/refnum -- and we note we're still
+not at 'real' urefs because we don't have a stgnum
+here yet..
+
+[18:
+
+Mon Jul 28 02:27:58 2025 And since BigTrans is a
+transient, we imagine we'd need one of these
+entirely undesigned 'per physics temp stg' numbers
+for this. But what the hell: Let's pretend we do.
+
+stgnums
+  0..40 : 41 ew atoms
+  41..72 : 32 atom registers
+  73..122 : 50 per physics temp stg
+  123..126 : reserved, fail if used
+  127 : none or illegal
+
+so we could claim stgnum 73, say, is a BigTrans.
+
+And so then a complete uref might be like 73#15/0
+meaning it's in stgnum 73, which must be a
+uclassid 15 == BigTrans, and we want the /0th
+UrefInfo of BigTrans, which is our
+
+      (URI #0 @0 +65 BigTrans#15/BigTrans#15 'BigTrans*')
+
+from above.
+
+[19:
+
+Mon Jul 28 02:38:15 2025 Aaaand, say we want to
+access 'mOtherElt' of BigTrans.
+
+So we'd be saying we want 
+
+    deref(73#15/0,'mOtherElt') => 73#15/14
+
+which is supposed to mean:
+
+      (URI #14 @18 +10 DReg#16/DReg#16 'DReg*')
+
+is that right?
+
+[20:
+
+Mon Jul 28 02:47:18 2025 We'd really like to get
+all the data member names into that output
+somehow.. how come 'mOtherElt' is nowhere there?
+[21:
+
+Mon Jul 28 03:10:19 2025 I think it's because
+visitULVal does
+
+            yield from self.uc.visitClassPlus(pos, refnum+1)          # a whole instance of the class
+
+to enumerate the refs associated with a non-prim
+data member, and it has no way of passing in the
+ULVal.uvname member that it's absolutely got.
+
+So have to think about that..[22:
+
+Mon Jul 28 10:23:37 2025 Maybe have an 'on behalf
+of' arg we pass in?
+[23:
+
+Mon Jul 28 10:52:54 2025 OK, now with
+
+    def visitClassPlus(self, pos, refnum, oname): # here, self is the stguclass
+
+with 'oname' sort of meaning 'object name', we see
+stuff like this:
+
+    UR/BigTrans 
+      (URI #0 @0 +65 BigTrans#15/BigTrans#15 'BigTrans.BigTrans*')
+      (URI #1 @0 +61 BigTrans#15/BigTrans#15 'BigTrans!')
+      (URI #2 @0 +18 EltWithAQFoo#14/EltWithAQFoo#14 'mElt.EltWithAQFoo*')
+      (URI #3 @0 +17 EltWithAQFoo#14/EltWithAQFoo#14 'EltWithAQFoo!')
+      (URI #4 @0 +10 QFoo#12/QFoo#12 'mQFoo.QFoo*')
+ ..
+      (URI #13 @18 +0 EltWithAQFoo#14/UrSelf#4 'UrSelf!')
+      (URI #14 @18 +10 DReg#16/DReg#16 'mOtherElt.DReg*')
+      (URI #15 @18 +0 DReg#16/DReg#16 'DReg!')
+ ..
+
+[24:
+
+Mon Jul 28 16:04:24 2025 Lots of distractions
+today. But thinking it shouldn't be that hard to
+generate 'explanations' for how each added ref
+came to be, in the sense of a uref operation that
+would produce this new uref as a result.
+
+Could we make an 'upstream uref' kind of member?
+
+[25:
+
+Mon Jul 28 16:15:28 2025
+
+    UR/BigTrans 
+      (URI #0 @0 +65 BigTrans#15/BigTrans#15 'BigTrans.BigTrans*')
+  <- (root)
+
+      (URI #1 @0 +61 BigTrans#15/BigTrans#15 'BigTrans!')
+  <- #0 by class slice (whatever that will mean for us)
+
+      (URI #2 @0 +18 EltWithAQFoo#14/EltWithAQFoo#14 'mElt.EltWithAQFoo*')
+  <- #1 by member select 'mElt' (BigTrans#15 member 0)
+
+      (URI #3 @0 +17 EltWithAQFoo#14/EltWithAQFoo#14 'EltWithAQFoo!')
+  <- #2 by class slice
+
+      (URI #4 @0 +10 QFoo#12/QFoo#12 'mQFoo.QFoo*')
+  <- #1 by member select 'mQFoo' (BigTrans#15 member 1)
+
+      (URI #5 @0 +9 QFoo#12/QFoo#12 'QFoo!')
+  <- #4 by class slice
+
+      (URI #6 @0 +9 QFoo#12/Unsigned#2 'mDataqfoo')
+  <- #6 by member select 'mDataqfoo' (QFoo#12 member 0)
+
+      (URI #7 @9 +1 QFoo#12/QDebug#11 'QDebug!')
+  <- #4 by class slice
+
+      (URI #8 @9 +1 QFoo#12/Bool#3 'mEnable')
+  <- #7 by member select 'mEnable' (QDebug#11 member 0)
+
+      (URI #9 @10 +0 QFoo#12/UrSelf#4 'UrSelf!')
+  <- #4 by class slice
+
+      (URI #10 @10 +7 EltWithAQFoo#14/Int#1 'mCounter')
+  <- #3 by member select 'mCounter' (EltWithAQFoo#14 member 1)
+
+      (URI #11 @17 +1 EltWithAQFoo#14/QDebug#11 'QDebug!')
+      (URI #12 @17 +1 EltWithAQFoo#14/Bool#3 'mEnable')
+      (URI #13 @18 +0 EltWithAQFoo#14/UrSelf#4 'UrSelf!')
+      (URI #14 @18 +10 DReg#16/DReg#16 'mOtherElt.DReg*')
+      (URI #15 @18 +0 DReg#16/DReg#16 'DReg!')
+      (URI #16 @18 +9 DReg#16/QFoo#12 'QFoo!')
+      (URI #17 @18 +9 DReg#16/Unsigned#2 'mDataqfoo')
+      (URI #18 @27 +1 DReg#16/QDebug#11 'QDebug!')
+      (URI #19 @27 +1 DReg#16/Bool#3 'mEnable')
+      (URI #20 @28 +0 DReg#16/UrSelf#4 'UrSelf!')
+      (URI #21 @28 +33 Sorter#17/Sorter#17 'mStillOtherElt.Sorter*')
+      (URI #22 @28 +32 Sorter#17/Sorter#17 'Sorter!')
+      (URI #23 @28 +32 Sorter#17/Int#1 'mData')
+      (URI #24 @60 +1 Sorter#17/QDebug#11 'QDebug!')
+      (URI #25 @60 +1 Sorter#17/Bool#3 'mEnable')
+      (URI #26 @61 +0 Sorter#17/UrSelf#4 'UrSelf!')
+      (URI #27 @61 +1 BigTrans#15/QDebug#11 'QDebug!')
+      (URI #28 @61 +1 BigTrans#15/Bool#3 'mEnable')
+      (URI #29 @62 +0 BigTrans#15/UrSelf#4 'UrSelf!')
+      (URI #30 @62 +3 BigTrans#15/QBar#13 'QBar!')
+      (URI #31 @62 +3 BigTrans#15/Bool#3 'mDongo')
+
+
+:25]
+
+:24]
+
+:23]
+:22]
+
+:21]
+
+:20]
+
+:19]
+
+:18]
+
+:17]
+:16]
+
+:15]
+
+:14]
+[26:
+
+Wed Jul 30 01:03:07 2025 So okay where are we,
+here? We're celebrating having gotten two new
+circuits into the toolroom, in anticipation of
+getting the TensTorrent BlackHole QuietBox in
+perhaps less than a month now.
+
+Let's have a little free time while we still have
+a chance..
+
+:26]
+[27:
+
+Wed Jul 30 10:14:14 2025 OK, so we're well into
+the countdown and don't have a lot to show for it
+yet, as far as demo goes anyway.[28:
+
+Wed Jul 30 10:59:59 2025 So we used basically two
+operations above:
+
+    (1) member select (go from X! to X.y* by
+        selecting a data member)
+    (2) class slice  (go from X* to X! by
+        selecting a base)
+
+so 'class slice' could really obviously be 'class
+select' or 'base select' for more symmetry.[29:
+
+Wed Jul 30 14:53:24 2025 Is there no other kinds
+of uref transition operators? Well I guess .atomof
+would be one, 'deselecting' all the way back to
+the nearest atom, if there is one.
+
+So we want tables, or something, to implement like
+
+  URef.getMemberOf(memberindex) => URef or error
+  URef.getBaseOf(baseindex) => URef or error
+  URef.getAtomOf() => URef or error
+
+and then we need memberindex and baseindex mapping
+from strings, I guess, or for spike purposes
+change the args to string names.
+
+[30:
+
+Wed Jul 30 15:33:36 2025 And I guess we could
+start by just accumulating some dicts as we walk
+the urefs?
+
+Let's try it.[31:
+
+Wed Jul 30 16:08:05 2025 There'll also be method
+calls, virtual and not, of course!
+
+:31]
+
+:30]
+
+:29]
+
+:28]
+
+:27]
+[32:
+
+Thu Jul 31 12:53:26 2025 OK let's try to do a run
+at this. First task: review current status:
+
+ - We enumerate all possible urefs of a class in a
+   plausible manner.
+
+ - We believe we can associate each step in that
+   enumeration with a 'pref UR#'+'select op' that
+   would produce the new UR#, but we haven't
+   implemented that and are not sure what it wants
+   to look like..
+
+ - That's the current status?
+
+:32]
+[33:
+
+Thu Jul 31 13:17:01 2025 Ohhhhhkay, our next goal
+is 'define an aspirational C++ API for urefs'.
+Let's goooooo.[34:
+
+Thu Jul 31 13:18:31 2025 OK, so at the moment we
+have MFMx10/src/spikes/riscv10/src/main.cpp which,
+I believe, actually does build and run, albeit
+doing almost nothing when it does.
+
+Let's try to stick our fantasy uref API in with
+that.. [35:
+
+Thu Jul 31 13:22:06 2025 OK, problem with that is
+we already have core/src/URef.cpp and
+core/include/URef.h ... Well, let's just work in
+those existing spots, then..[36:
+
+Thu Jul 31 13:24:08 2025 OK, the existing stuff
+does:
+
+      struct URef {
+        u8 mAccess;
+        u8 mMemberId;
+
+        u32 getURRaw() const { return ((mAccess<<8) | mMemberId); }
+        u8 getURAccess() const { return mAccess; }
+        u8 getURMemberId() const { return mMemberId; }
+
+        void setURAccess(u8 acc) { mAccess = acc; }
+        void setURMemberId(u8 mid) { mMemberId = mid; }
+      };
+
+although we'd been thinking of doing 'u7' for
+stgid and 'u9' for ur#
+
+[37:
+
+Thu Jul 31 13:42:58 2025 OK, well, it's officially
+off-task, but we redid URef there for 7b + 9b, and
+updated the member names to be 'more current' - 
+
+      struct URef {
+        const u16 STGID_BITS = 7u;
+        const u16 UREFNUM_BITS = 9u;
+        const u16 STGID_MASK = ((1u<<STGID_BITS)-1u);
+        const u16 UREFNUM_MASK = ((1u<<UREFNUM_BITS)-1u);
+
+        u16 mData;
+
+        u16 getURefRaw() const { return mData; }
+        u16 getURefStgId() const { return (mData>>UREFNUM_BITS)&STGID_MASK; }
+        u16 getURefNumber() const { return mData&UREFNUM_MASK; }
+
+        void setURefStgId(u16 stg) {
+          if (unlikely(stg > STGID_MASK)) stg = STGID_MASK;
+          mData = (stg<<UREFNUM_BITS)|getURefNumber();
+        }
+        void setURefNumber(u16 num) {
+          if (unlikely(num > UREFNUM_MASK)) num = UREFNUM_MASK;
+          mData = (mData&(STGID_MASK<<UREFNUM_BITS))|num;
+        }
+      };
+ 
+:37]
+
+:36]
+
+:35]
+
+:34]
+
+:33]
+[38:
+
+Thu Jul 31 13:55:12 2025 OK, after 37minutes
+retroactively labelled 'refresh URef.h', we are
+now officially back on track for 'aspirational C++
+API for urefs'.
+
+And the immediate issue there is we now have an
+API for URef, and what we need is an API for
+something more like URefInfo. Well let's take a
+whack at that.[39:
+
+Thu Jul 31 13:59:17 2025 So we're imagining a
+URefInfo would be contained in each UClass object?
+So we'd
+
+(1) Have a current ur, and we need to get
+    position, size, effself, and so on, from that
+    current ur.
+
+Do we want an 'expanded URef' or something, to
+carry that information around?[40:
+
+Thu Jul 31 14:04:37 2025 Maybe something like:
+
+      struct URefDescriptor {
+        u8 mPosition;
+        u8 mSize;
+        u8 mStaticType;
+        u8 mEffectiveSelf;
+      };
+
+and then something like:
+
+      class URefInfo {
+      public:
+        virtual URefDescriptor getDescriptor(const URef ur) = 0;
+ ..
+      };
+
+?
+
+[41:
+
+Thu Jul 31 14:07:35 2025 Well, that now builds,
+but we're not using it for anything.. Do we want
+to call the 'aspirational C++ API' goal for now?
+It's not able to do URef transitions.. but just
+being able to do getDescriptor() would be
+progress..
+
+I guess we do need something higher-level, though,
+since a ur stgnum should imply (at runtime anyway)
+a UClass or something, and the UClass should
+contain the URefInfo, so we need a general
+URef->URefDescriptor to exist somewhere in some
+non-pure-virtual form..
+
+:41]
+
+:40]
+
+:39]
+
+:38]
+[42:
+
+Thu Jul 31 14:14:11 2025 Opps, UClass.h already
+has
+
+      struct UCMemberInfo {
+        u16 mMemberPosition;        // bit position in stg
+        u16 mMemberSize;            // bit size in stg
+        u16 mMemberClassId;         // concrete classid (effself)
+      };
+
+but I think we want URefInfo instead..[43:
+
+Thu Jul 31 14:15:11 2025 And nobody's using
+UCMemberInfo anyway. Let's strike it..[44:
+
+Thu Jul 31 14:21:47 2025 So the current UClass.h
+should perhaps become UClassLibrary.h or
+something, and that would handle the mapping of
+URefs to UClass*s.
+
+IN FOR A PENNY LET'S GOOOO[45:
+
+Thu Jul 31 14:26:31 2025 OK, now we have
+
+      class UClassLibrary {
+      public:
+        UClass * getStaticUClass(URef ur) {
+          return 0;
+        }
+        UClass * getEffectiveClass(URef ur) {
+          return 0;
+        }
+      };
+
+and we're calling our aspirational C++ API goal
+for now.
+
+Might be nap time.
+[46:
+
+Thu Jul 31 22:57:17 2025 OK so what next here. Can
+we rough out some scaffolding with a
+generated-code-sized-hole in it somehow?
+
+What all will that code tell us?
+
+ - Count of 'physics temps'
+ - map of physics temp# to uclassid
+ - map of uclassid to UClass*
+
+let's focus on that last, shall we hmm?
+[47:
+
+Thu Jul 31 23:02:35 2025 So okay as a reminder,
+UClassFactory(.py) has an allUClasses dict mapping
+from class name to uclassid (and lots of other
+stuff).
+
+So how about just trying to barf up allUClasses in
+some C++ shape?
+[48:
+
+Sun Aug  3 04:03:40 2025 I've really done no notes
+since Thursday? I guess it's possible. We have
+indeed barfed up a lot of C++ shapes.. in
+
+  MFMx10/gen/UCLGENERATEDCODE.inc
+
+which is getting included by
+
+  MFMx10/src/core/src/UClassLibrary.cpp
+
+and built successfully. Though lots of it are
+utterly unused so far.  
+
+:48]
+:47]
+
+:46]
+:45]
+
+:44]
+
+:43]
+
+:42]
+[49:
+
+Sun Aug  3 12:33:17 2025 SO OK. Totally no more
+time for development here at T-48hours, so let's
+just do a little more development here shall we.
+
+I'd like to see the current main.cpp spike somehow
+produce output that depends on riscv10.dtoml. But
+we've got some gaps in functionality before we get
+to that, beginning with the mapping from 'storage
+id' to 'uclassid' of the object at the identified
+storage location.
+[50:
+
+Sun Aug  3 12:57:44 2025 Mocking up some minimal
+thing in a EW zone would be the obvious. Let's see
+what's what real quick.[51:
+
+Sun Aug  3 13:00:36 2025 We need something like
+
+  UClassId getCurrentUClassId(u16 stgid)
+
+and who would own that? UClassLibrary? URefInfo?
+[52:
+
+Sun Aug  3 13:16:24 2025 Let's put it in
+UClassLibrary for now anyway - that's where our
+private EW * mEW is..[53:
+
+Sun Aug  3 13:58:39 2025 OK so now the issue is
+that P4Atom.h is claiming:
+
+        enum { ATOM_EMPTY_TYPE = 0x1ff };
+
+but our generated code is claiming
+
+      const u32 UCLG_CLASS_COUNT = 21u;
+
+(and 511 >= 21, btw..) [54:
+
+Sun Aug  3 14:03:03 2025 Let's declare Empty
+automatically during 'codegen'..
+
+[55:
+
+Fri Aug  8 08:48:21 2025 OK, we're back after
+t2sday. [56:
+
+Fri Aug  8 15:45:15 2025 OK pretty busy fambly
+work day but have a small gap here until time to
+cook dinner.
+
+So: REVIEW STATUS.
+
+Q: How do we run our spike?
+[57:
+
+Fri Aug  8 15:46:17 2025
+
+A:
+
+(1) 'make run' in
+      /data/ackley/PART4/code/D/MFMx10/scripts/UC13/
+    which 'generates C++ code' from
+      MFMx10/src/spikes/riscv10/code/riscv10.dtoml 
+    and then
+(2) 'make run' in
+      /data/ackley/PART4/code/D/MFMx10/
+    which builds and runs that code.
+
+[58:
+
+Fri Aug  8 15:47:21 2025 
+
+Q: What is the state of the art in step (2) above?
+A: Making an 'EltWithAQFoo' in ew[2], and then
+   determining that EltWithAQFoo.mCounter is URI#1
+
+So I think that means any of the following could
+be next:
+
+(1) Write a value to mCounter using URI#1
+(2) Read a value from mCounter using URI#1
+[59:
+
+Fri Aug  8 23:01:40 2025 Let's try to generate
+BitField declarations for all the members we know
+about. There's DHS_VAL as an example in main.cpp.. 
+[60:
+
+Fri Aug  8 23:04:34 2025 Or perhaps just a general
+read-a-data-member thing.. small steps..
+
+:60]
+:59]
+:58]
+
+:57]
+:56]
+
+:55]
+:54]
+
+:53]
+
+:52]
+
+:51]
+
+:50]
+:49]
+[61:
+
+Mon Aug 11 01:48:03 2025 Well, I want to refresh
+on the code gen side, and see about extending our
+generated tables to compute specific UR-to-UR
+transitions.
+
+[62:
+
+Mon Aug 11 01:50:02 2025 REFRESH:
+
+ - UC13/Main.py runs everything
+
+ - Main.process() sequences it:
+
+        def process(self):
+            self.declareAllUClasses()
+            self.settleSizes()
+            self.settlePositions()
+            self.generateURefs()
+
+ - Main.generateURefs() dishes to
+   UClass.generateURefs for each class.
+
+ - UClass.generateURefs uses UClass.visitAllRefs
+   to iterate the URefs:
+
+        def generateURefs(self):
+ ..         if self.isPrim(): return
+            for uref in self.visitAllRefs(self,0, { }):
+ ..             uref.refnum = len(self.referenceList)
+                self.referenceList.append(uref)
+
+ - UC.visitAllRefs just dishes to visitClassPlus:
+
+    def visitAllRefs(self,stgclass,pos,seen):
+ ..     return self.visitClassPlus(stgclass, 0, 0, self.ucname)
+
+
+ - UC.visitClassPlus is meant to iterate over a
+   'whole object's URefs -- including its base
+   classes -- versus UC.visitClassBang, which is
+   meant to iterate over just the direct data
+   members of the current UClass.
+
+ - UC.visitClassPlus first yields a URef to the
+   class and all its bases.
+
+So now, question: Can we say what transition(s) on
+what prior URef(s) should yield that URef?
+
+I guess we need info from the caller to tell. How
+many places call visitClassPlus?
+
+[63:
+
+Mon Aug 11 02:13:40 2025
+
+Well, ULVal.visitULVal, for one:
+
+        def visitULVal(self, stguclass, membclass, pos, refnum):
+..          if self.isprim:
+..
+            else:
+                yield from self.uc.visitClassPlus(stguclass, pos, refnum+1, self.uvname) # a whole instance of the class
+..          return pos+siz,refnum+1
+
+
+and we'd think that was a transition from a URef
+to a data member to the object contained by the
+data member?
+
+To be specific. Consider EltWithAQFoo:
+
+    [Class.EltWithAQFoo]
+      type = element
+ ..   has.mQFoo = [ QFoo ]
+ ..
+
+which currently generates stuff like this:
+
+      static const URefDescriptor UCLG_UClassAllURefs_EltWithAQFoo[] = {
+      { 15, 15, 15, 0, 19 }, // (URI#0 <EltWithAQFoo#15> @0 +19 mc:EltWithAQFoo#15 effs:EltWithAQFoo#15 'EltWithAQFoo.EltWithAQFoo*')
+      { 15, 15, 15, 0, 18 }, // (URI#1 <EltWithAQFoo#15> @0 +18 mc:EltWithAQFoo#15 effs:EltWithAQFoo#15 'EltWithAQFoo!')
+      { 15, 13, 13, 0, 10 }, // (URI#2 <EltWithAQFoo#15> @0 +10 mc:QFoo#13 effs:QFoo#13 'mQFoo.QFoo*')
+      { 15, 13, 13, 0, 9 }, // (URI#3 <EltWithAQFoo#15> @0 +9 mc:QFoo#13 effs:QFoo#13 'QFoo!')
+
+and maybe we'd say URI#1->URI#2 is an example of
+what this visitULVal is doing? But wait: ULVal is
+just doing yield from, not yield: It doesn't
+generate a URef at that moment.
+
+But it maybe does 'change stances' at that point,
+somehow, which would be reflected in args passed
+forward that affect the next UR that is generated?
+
+(Noting in particular that the yield from is
+heading (back) to UClass.visitClassPlus.)
+
+[64:
+
+Mon Aug 11 02:39:35 2025 Certainly we could pass
+the previous URI#, since I bet it will not always
+be consecutive. And perhaps some kind of 'op' or
+reason for the call, which would apply only to the
+next URI# generated (or would be modulated within
+the callee -- e.g., for different data member
+accesses from the same UC!, or different base
+class accesses from the same UC*.
+[65:
+
+Mon Aug 11 12:20:20 2025 Well, had to sleep and
+what-not, so where are we here?
+
+We'd kind of like a design for passing info among
+the various generators, I guess. Like say.. going
+from like this:
+
+  UClass.visitClassPlus(self, stguclass, pos, refnum, oname): # here, self is the membclass
+
+to something like this:
+
+  UClass.visitClassPlus(self, stguclass, pos, refnum, oname, fromURI, opcode, oparg)
+
+or something? With 'opcode' being like 'data
+member access' or 'base class access', and 'oparg'
+being like 'data member #2' or 'base class #3' or
+whatever?[66:
+
+Mon Aug 11 14:06:06 2025 Or maybe they're solidly
+separate with like -
+
+  UClass.visitClassPlus(self, stguclass, pos, refnum, oname, fromURI, datamemberidx)
+
+and
+
+  UClass.visitClassBang(self, stguclass, membclass, pos, refnum, fromURI, baseclassidx)
+
+? I'm not really sure if it's that clean, though.. 
+
+And the URefInfo would be extended to store those
+additional bits..
+
+:66]
+
+:65]
+:64]
+
+:63]
+
+:62]
+
+:61]
+[67:
+
+Tue Aug 12 15:26:46 2025 Ugh I feel like I should
+pop UC14 before trying to redo the URefInfo stuff.
+In particular, I think the need/utility of doing
+it with generators has dwindled to about nothing.
+[68:
+
+Tue Aug 12 15:29:09 2025 OK, now we're in UC14.
+Goal is to redo the visiting without generators,
+and collect inter-URI-links as we go.
+
+SO:
+
+ - Instead of yielding URefInfos, just stick them
+   in their appropriate place in the stguclass.
+
+ - Also generate the URI transitions and stash
+   them in the stguclass or the URIs themselves
+
+ - See where we are.
+[69:
+
+Wed Aug 13 12:42:31 2025 OK well it's all a mess
+but we're running all the way through with a
+non-generator version of all the visit* methods.
+And we're accumulating some kind of inter-URI
+transition info as well. We need to generate some
+C++ tables with that info..
+
+But need to do some pre-marinade steps for dinner
+first.. [70:
+
+Wed Aug 13 14:32:31 2025 So, these transitions are
+on a per-'full object'-UClass basis. No, actually,
+they are on a UClass-as-stgid basis - which is
+*different* than a mere 'full object' basis. A
+data member is a full-object but is not a
+'stgid-object'. (Need to work on these names!)
+
+From a given uref, to do say a dm access to index
+dmidx, we do:
+
+(1) from uref.stgid -> UClass ucas
+(2) from ucas.asStgObj -> URefTransitions urt
+(3) from urt.source[uref.num][dmidx] -> URef result
+
+[71:
+
+Thu Aug 14 09:49:37 2025 And what is a
+URefTransitions? I think I need to remind myself
+what the C++-side data structures look like, and
+then try to get serious about where to put this
+transition info..[72:
+
+Thu Aug 14 09:52:46 2025 Well, we've got
+
+      struct URefDescriptor {
+        u16 mStgType;
+        u16 mStaticType;
+        u16 mEffectiveSelf;
+        u8 mPosition;
+        u8 mSize;
+      };
+
+which seems like one reasonably plausible option.
+And how would we represent the possible
+transitions? Their number depends on data member
+or base class count.
+
+Do that ancient char[0]-at-struct-end hack? But
+we're statically allocating these things anyway.
+
+At the moment we're trying to provide 9 bits per
+refnum. So we can refer to >500 different places
+in a whole stgid. It would be a ton easier if we
+could accept 8 bits for a refnum.
+
+There's also still the question of how much space
+we're going to burn with all these partially
+redundant transition tables. Consider a complex
+base class like HC3: It might have a dozen of
+directly referrable things, or more, and then we
+might have a dozen different HC3 subclasses..
+
+[73:
+
+Thu Aug 14 10:16:25 2025 But what is the (vaguely
+nearby) alternative? I guess it's "do more complex
+code to interpret the refnum" rather than
+indexing into a flat table per (typed) stgid.
+
+Have ranges of refnums assigned to subobjects?
+Have refnums that refer to whole objects just
+point at the uclassid + a pos in the stgid? Like a
+random whole object as a dm of something.
+
+But okay suppose we do that. Then we want to refer
+to a particular base, say, within that whole
+object. Since we're starting from a data member
+that's a whole object, we look for its base class
+layout, and the stgid doesn't matter at all except
+for the positioning.
+
+[74:
+
+Thu Aug 14 12:05:26 2025 Gah just confusing myself
+again. Start over (have to not forget call
+starting at 1pm tho).
+
+So we already have generated tables of
+URefDescriptors, like this:
+
+      static const URefDescriptor UCLG_UClassAllURefs_Y2[] = {
+      { 6, 6, 6, 0, 33 }, // (URI#0 <Y2#6> @0 +33 mc:Y2#6 effs:Y2#6 'Y2.Y2*')
+      { 6, 6, 6, 0, 33 }, // (URI#1 <Y2#6> @0 +33 mc:Y2#6 effs:Y2#6 'Y2!')
+      { 6, 7, 7, 0, 30 }, // (URI#2 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'mDatay2.Y3*')
+      { 6, 7, 7, 0, 30 }, // (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3!')
+      { 6, 8, 8, 0, 25 }, // (URI#4 <Y2#6> @0 +25 mc:Y4#8 effs:Y4#8 'mDatay3.Y4*')
+  ..
+
+and 'all' we're looking for is a way to extend
+each of those with a variable-length list of 9b
+numbers.. If they're whole objects (like URI#0,
+#2, #4), the list would contain uri#'s of the URDs
+that represent the base class slices of each whole
+object.
+
+For example, let's consider U#2 - mDatay2.Y3*. Y3
+has only two base classes -
+
+      static const u16 UCLG_UClassAllBases_Y3[] = {
+       7u,  /* Y3 */
+       1u,  /* UrSelf */
+      };
+
+so maybe that's not a great example.. What if we
+throw QDebug in there, what the h.[75:
+
+Thu Aug 14 12:14:23 2025 OK, now we have
+
+      static const u16 UCLG_UClassAllBases_Y3[] = {
+       7u,  /* Y3 */
+       8u,  /* QDebug */
+       1u,  /* UrSelf */
+      };
+
+getting generated for Y3. And now we see:
+
+      static const URefDescriptor UCLG_UClassAllURefs_Y2[] = {
+      { 6, 6, 6, 0, 34 }, // (URI#0 <Y2#6> @0 +34 mc:Y2#6 effs:Y2#6 'Y2.Y2* ::: 
+{0: (URI#1 <Y2#6> @0 +34 mc:Y2#6 effs:Y2#6 'Y2! ::: {0: (URI#2 <Y2#6> @0 +31 mc:Y3#7 effs:Y3#7 'mDatay2.Y3* ::: {0: (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3! ::: {0: (URI#4 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'mDatay3.Y4* ::: {0: (URI#5 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'Y4! ::: {0: (URI#6 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'mDatay4.Y5* ::: {0: (URI#7 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'Y5! ::: {0: (URI#8 <Y2#6> @0 +25 mc:Int#3 effs:Int#3 'mDatay5 ::: {}')}'), 1: (URI#9 <Y2#6> @25 +0 mc:Y5#10 effs:UrSelf#1 'UrSelf! ::: {}')}')}'), 1: (URI#10 <Y2#6> @25 +0 mc:Y4#9 effs:UrSelf#1 'UrSelf! ::: {}')}'), 1: (URI#11 <Y2#6> @25 +5 mc:Unsigned#4 effs:Unsigned#4 'mUnsg ::: {}')}'), 1: (URI#12 <Y2#6> @30 +1 mc:Y3#7 effs:QDebug#8 'QDebug! ::: {0: (URI#13 <Y2#6> @30 +1 mc:Bool#5 effs:Bool#5 'mEnable ::: {}')}'), 2: (URI#14 <Y2#6> @31 +0 mc:Y3#7 effs:UrSelf#1 'UrSelf! ::: {}')}'), 1: (URI#15 <Y2#6> @31 +3 mc:Bool#5 effs:Bool#5 'mBool ::: {}')}'), 
+1: (URI#16 <Y2#6> @34 +0 mc:Y2#6 effs:UrSelf#1 'UrSelf! ::: {}')}')
+      { 6, 6, 6, 0, 34 }, // (URI#1 <Y2#6> @0 +34 mc:Y2#6 effs:Y2#6 'Y2! ::: {0: (URI#2 <Y2#6> @0 +31 mc:Y3#7 effs:Y3#7 'mDatay2.Y3* ::: {0: (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3! ::: {0: (URI#4 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'mDatay3.Y4* ::: {0: (URI#5 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'Y4! ::: {0: (URI#6 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'mDatay4.Y5* ::: {0: (URI#7 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'Y5! ::: {0: (URI#8 <Y2#6> @0 +25 mc:Int#3 effs:Int#3 'mDatay5 ::: {}')}'), 1: (URI#9 <Y2#6> @25 +0 mc:Y5#10 effs:UrSelf#1 'UrSelf! ::: {}')}')}'), 1: (URI#10 <Y2#6> @25 +0 mc:Y4#9 effs:UrSelf#1 'UrSelf! ::: {}')}'), 1: (URI#11 <Y2#6> @25 +5 mc:Unsigned#4 effs:Unsigned#4 'mUnsg ::: {}')}'), 1: (URI#12 <Y2#6> @30 +1 mc:Y3#7 effs:QDebug#8 'QDebug! ::: {0: (URI#13 <Y2#6> @30 +1 mc:Bool#5 effs:Bool#5 'mEnable ::: {}')}'), 2: (URI#14 <Y2#6> @31 +0 mc:Y3#7 effs:UrSelf#1 'UrSelf! ::: {}')}'), 1: (URI#15 <Y2#6> @31 +3 mc:Bool#5 effs:Bool#5 'mBool ::: {}')}')
+      { 6, 7, 7, 0, 31 }, // (URI#2 <Y2#6> @0 +31 mc:Y3#7 effs:Y3#7 'mDatay2.Y3* ::: {0: (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3! ::: {0: (URI#4 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'mDatay3.Y4* ::: {0: (URI#5 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'Y4! ::: {0: (URI#6 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'mDatay4.Y5* ::: {0: (URI#7 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'Y5! ::: {0: (URI#8 <Y2#6> @0 +25 mc:Int#3 effs:Int#3 'mDatay5 ::: {}')}'), 1: (URI#9 <Y2#6> @25 +0 mc:Y5#10 effs:UrSelf#1 'UrSelf! ::: {}')}')}'), 1: (URI#10 <Y2#6> @25 +0 mc:Y4#9 effs:UrSelf#1 'UrSelf! ::: {}')}'), 1: (URI#11 <Y2#6> @25 +5 mc:Unsigned#4 effs:Unsigned#4 'mUnsg ::: {}')}'), 1: (URI#12 <Y2#6> @30 +1 mc:Y3#7 effs:QDebug#8 'QDebug! ::: {0: (URI#13 <Y2#6> @30 +1 mc:Bool#5 effs:Bool#5 'mEnable ::: {}')}'), 2: (URI#14 <Y2#6> @31 +0 mc:Y3#7 effs:UrSelf#1 'UrSelf! ::: {}')}')
+      { 6, 7, 7, 0, 30 }, // (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3! ::: {0: (URI#4 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'mDatay3.Y4* ::: {0: (URI#5 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'Y4! ::: {0: (URI#6 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'mDatay4.Y5* ::: {0: (URI#7 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'Y5! ::: {0: (URI#8 <Y2#6> @0 +25 mc:Int#3 effs:Int#3 'mDatay5 ::: {}')}'), 1: (URI#9 <Y2#6> @25 +0 mc:Y5#10 effs:UrSelf#1 'UrSelf! ::: {}')}')}'), 1: (URI#10 <Y2#6> @25 +0 mc:Y4#9 effs:UrSelf#1 'UrSelf! ::: {}')}'), 1: (URI#11 <Y2#6> @25 +5 mc:Unsigned#4 effs:Unsigned#4 'mUnsg ::: {}')}')
+      { 6, 9, 9, 0, 25 }, // (URI#4 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'mDatay3.Y4* ::: {0: (URI#5 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'Y4! ::: {0: (URI#6 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'mDatay4.Y5* ::: {0: (URI#7 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'Y5! ::: {0: (URI#8 <Y2#6> @0 +25 mc:Int#3 effs:Int#3 'mDatay5 ::: {}')}'), 1: (URI#9 <Y2#6> @25 +0 mc:Y5#10 effs:UrSelf#1 'UrSelf! ::: {}')}')}'), 1: (URI#10 <Y2#6> @25 +0 mc:Y4#9 effs:UrSelf#1 'UrSelf! ::: {}')}')
+
+[76:
+
+Thu Aug 14 12:26:29 2025 OK now we're mapping the
+URIs down to just their refnums and things look a
+lot more manageable. Here's the whole Y2 uref
+table:
+
+      static const URefDescriptor UCLG_UClassAllURefs_Y2[] = {
+      { 6, 6, 6, 0, 34 }, // (URI#0 <Y2#6> @0 +34 mc:Y2#6 effs:Y2#6 'Y2.Y2* ::: [0]->#1 [1]->#16 ')
+      { 6, 6, 6, 0, 34 }, // (URI#1 <Y2#6> @0 +34 mc:Y2#6 effs:Y2#6 'Y2! ::: [0]->#2 [1]->#15 ')
+      { 6, 7, 7, 0, 31 }, // (URI#2 <Y2#6> @0 +31 mc:Y3#7 effs:Y3#7 'mDatay2.Y3* ::: [0]->#3 [1]->#12 [2]->#14 ')
+      { 6, 7, 7, 0, 30 }, // (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3! ::: [0]->#4 [1]->#11 ')
+      { 6, 9, 9, 0, 25 }, // (URI#4 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'mDatay3.Y4* ::: [0]->#5 [1]->#10 ')
+      { 6, 9, 9, 0, 25 }, // (URI#5 <Y2#6> @0 +25 mc:Y4#9 effs:Y4#9 'Y4! ::: [0]->#6 ')
+      { 6, 10, 10, 0, 25 }, // (URI#6 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'mDatay4.Y5* ::: [0]->#7 [1]->#9 ')
+      { 6, 10, 10, 0, 25 }, // (URI#7 <Y2#6> @0 +25 mc:Y5#10 effs:Y5#10 'Y5! ::: [0]->#8 ')
+      { 6, 3, 3, 0, 25 }, // (URI#8 <Y2#6> @0 +25 mc:Int#3 effs:Int#3 'mDatay5 ::: ')
+      { 6, 10, 1, 25, 0 }, // (URI#9 <Y2#6> @25 +0 mc:Y5#10 effs:UrSelf#1 'UrSelf! ::: ')
+      { 6, 9, 1, 25, 0 }, // (URI#10 <Y2#6> @25 +0 mc:Y4#9 effs:UrSelf#1 'UrSelf! ::: ')
+      { 6, 4, 4, 25, 5 }, // (URI#11 <Y2#6> @25 +5 mc:Unsigned#4 effs:Unsigned#4 'mUnsg ::: ')
+      { 6, 7, 8, 30, 1 }, // (URI#12 <Y2#6> @30 +1 mc:Y3#7 effs:QDebug#8 'QDebug! ::: [0]->#13 ')
+      { 6, 5, 5, 30, 1 }, // (URI#13 <Y2#6> @30 +1 mc:Bool#5 effs:Bool#5 'mEnable ::: ')
+      { 6, 7, 1, 31, 0 }, // (URI#14 <Y2#6> @31 +0 mc:Y3#7 effs:UrSelf#1 'UrSelf! ::: ')
+      { 6, 5, 5, 31, 3 }, // (URI#15 <Y2#6> @31 +3 mc:Bool#5 effs:Bool#5 'mBool ::: ')
+      { 6, 6, 1, 34, 0 }, // (URI#16 <Y2#6> @34 +0 mc:Y2#6 effs:UrSelf#1 'UrSelf! ::: ')
+      };
+
+and it looks pretty plausible I think.. like
+
+      { 6, 7, 7, 0, 31 }, // (URI#2 <Y2#6> @0 +31 mc:Y3#7 effs:Y3#7 'mDatay2.Y3* ::: [0]->#3 [1]->#12 [2]->#14 ')
+
+is a uref to a 'whole object' (with a '*'), so its
+three selectors are Y3's base classes -
+
+      static const u16 UCLG_UClassAllBases_Y3[] = {
+       7u,  /* Y3 */
+       8u,  /* QDebug */
+       1u,  /* UrSelf */
+      };
+
+and indeed Y2's #3 is the Y3 slice:
+
+      { 6, 7, 7, 0, 30 }, // (URI#3 <Y2#6> @0 +30 mc:Y3#7 effs:Y3#7 'Y3! ::: [0]->#4 [1]->#11 ')
+
+and its #12 is the QDebug slice:
+
+      { 6, 7, 8, 30, 1 }, // (URI#12 <Y2#6> @30 +1 mc:Y3#7 effs:QDebug#8 'QDebug! ::: [0]->#13 ')
+
+and its #16 is the UrSelf slice:
+
+      { 6, 6, 1, 34, 0 }, // (URI#16 <Y2#6> @34 +0 mc:Y2#6 effs:UrSelf#1 'UrSelf! ::: ')
+
+. So that's a little nice.
+
+[77:
+
+Thu Aug 14 12:45:58 2025 Getting close to talk
+time.. but I'm really wanting to go to UC14 and
+make refnums and stgids be 8bits each, and
+see-just-see how bad it is.[78:
+
+Thu Aug 14 13:05:47 2025 Talk is next week! I am
+back!
+
+FUCK IT LET'S GO TO UC14.[79:
+
+Thu Aug 14 13:06:32 2025 Wait. We're already in
+UC14.
+
+FUCK IT LET'S GO TO UC15 GO GO GOOOOOOO![80:
+
+Thu Aug 14 13:08:03 2025 OK, we're in UC15.. but
+we need to hack stuff way up in MFMx10/src.
+
+[81:
+
+Thu Aug 14 14:28:51 2025 Well after getting RIGHT
+FUCKED IN THE GIT by 'Kimi K2' as offered by Kagi
+Assistant, I believe I may have now recovered much
+of my prior work, by merging existing emacs
+buffers with files pulled from lcf5820c.
+
+There's what two hours I won't be getting back.
+
+:81]
+
+
+:80]
+
+:79]
+
+:78]
+
+:77]
+
+:76]
+:75]
+
+:74]
+
+:73]
+
+:72]
+
+:71]
+:70]
+
+:69]
+:68]
+
+:67]
