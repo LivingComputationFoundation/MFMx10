@@ -20,28 +20,22 @@ namespace MFM {
   }
 
   struct URef {
-    u16 mData;
+    u8 mStgId;
+    u8 mRefNum;
 
-    static const u16 STGID_BITS = 7u;
-    static const u16 UREFNUM_BITS = 9u;
-    static const u16 STGID_MASK = ((1u<<STGID_BITS)-1u);
-    static const u16 UREFNUM_MASK = ((1u<<UREFNUM_BITS)-1u);
-
-    u16 getURefRaw() const { return mData; }
-    u16 getURefStgId() const { return (mData>>UREFNUM_BITS)&STGID_MASK; }
-    u16 getURefNumber() const { return mData&UREFNUM_MASK; }
+    u16 getURefRaw() const { return (((u16) mStgId)<<8u) | mRefNum; }
+    u8 getURefStgId() const { return mStgId; }
+    u8 getURefNumber() const { return mRefNum; }
 
     URef getDMURef(u32 dmidx) const ;
 
     URef getBCURef(u32 bcidx) const ;
 
-    void setURefStgId(u16 stg) {
-      if (unlikely(stg > STGID_MASK)) stg = STGID_MASK;
-      mData = (stg<<UREFNUM_BITS)|getURefNumber();
+    void setURefStgId(u8 stg) {
+      mStgId = stg;
     }
-    void setURefNumber(u16 num) {
-      if (unlikely(num > UREFNUM_MASK)) num = UREFNUM_MASK;
-      mData = (mData&(STGID_MASK<<UREFNUM_BITS))|num;
+    void setURefNumber(u8 num) {
+      mRefNum = num;
     }
   };
 

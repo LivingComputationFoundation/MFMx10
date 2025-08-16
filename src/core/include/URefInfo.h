@@ -7,11 +7,13 @@
 namespace MFM {
 
   struct URefDescriptor {
-    u16 mStgType;
-    u16 mStaticType;
-    u16 mEffectiveSelf;
+    u8 mStgType;
+    u8 mStaticType;
+    u8 mEffectiveSelf;
     u8 mPosition;
     u8 mSize;
+    u8 mFirstTransIdx;
+    u8 mTransCount;
   };
 
   class URefInfo {

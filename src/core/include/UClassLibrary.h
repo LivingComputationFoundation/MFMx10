@@ -5,6 +5,7 @@
 #include "URefInfo.h"
 #include "UClass.h"
 #include "EW.h"
+#include "Logger.h"
 
 namespace MFM {
 
@@ -18,8 +19,26 @@ namespace MFM {
 
     const URefDescriptor * getURefDescriptor(URef ur) const ;
 
+    AbstractBitVector & getURefAccessOrFail(URef ur, URefDescriptor & urd) const ;
+
     UClass * getStaticUClass(URef ur) ;
     UClass * getEffectiveClass(URef ur) ;
+
+    u32 readBitsRaw32(URef ur) const ;
+    u64 readBitsRaw64(URef ur) const ;
+    void writeBitsRaw32(URef ur, u32 newval) const ;
+    void writeBitsRaw64(URef ur, u64 newval) const ;
+
+    ByteSink& reportURef(URef uref, Logger & to) {
+      ByteSink * bs = to.GetByteSink();
+      MFM_API_ASSERT_NONNULL(bs);
+      to.VreportPrefix(Logger::MESSAGE);
+      reportURef(uref, *bs);
+      to.VreportSuffix();
+      return *bs;
+    }
+
+    ByteSink& reportURef(URef uref, ByteSink & to) ;
 
     URef getStgURef(u32 stgid) {
       URef ret;
@@ -27,6 +46,10 @@ namespace MFM {
       ret.setURefNumber(0u);
       return ret;
     }
+
+    AbstractBitVector * getABV(u32 stgid) const ;
+
+    URef selectURef(URef ur, u32 idx) const ;
 
     void takeEW(EW& ew) ;
 

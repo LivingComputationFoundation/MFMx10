@@ -43,12 +43,6 @@ class UClass:
         
         eprint(f"//generateURefs-11")
         ret = self.visitAllRefs(self,0, { })
-        # for uref in self.visitAllRefs(self,0, { }):
-        #     #eprint(f"//generateURefs-12 {self} {uref}")
-        #     uref.refnum = len(self.referenceList)
-        #     #eprint(f"//generateURefs-13 {self} {uref}")
-        #     self.referenceList.append(uref)
-        #     eprint(f"//generateURefs-14 {self} {self.referenceList}")
         eprint(f"//generateURefs-299 {self} = {ret}")
         eprint(f"UR/{self.ucname} \n  {'\n  '.join(map(str,self.referenceList))}")
 
@@ -238,29 +232,55 @@ class UClass:
     def getAllURefInfo(self):
         urcount = len(self.referenceList)
         if urcount == 0:
-            return  (0,"{ 0 }")
+            return  (0,"{ 0 }", ' "" ')
+        urnamesdef = ""
         urdef = ""
         for ur in self.referenceList:
-            urdef += f"  {{ {ur.stguclass.uclassid}, {ur.membclass.uclassid}, {ur.effself.uclassid}, {ur.pos}, {ur.size} }}, // {ur}\n"
-        return (urcount,urdef)
+            urdef += f"  {{ {ur.stguclass.uclassid:2}, {ur.membclass.uclassid:2}, {ur.effself.uclassid:2}, {ur.pos:2}, {ur.size:2}, {ur.firstSelectIndex:2}, {len(ur.selectURIs):2}, }}, // {ur}\n"
+            urnamesdef += f' "{ur.fromname}",\n'
+        return (urcount,urdef,urnamesdef)
+
+    def getAllURefTransitions(self): ### CALL BEFORE getAllURefInfo
+        urtcount = 0
+        urtcode = ""
+        for ur in self.referenceList:
+            (urtcount,newcode) = ur.generateTransInfo(urtcount)
+            urtcode += newcode
+        return (urtcount,urtcode)
+        
 
     def generateUClassData(self,dbcount,dbdefname):
         print("")
         print(f"/** {self.report()} */")
         (abcount,abdef) = self.getAllBaseInfo()
         (dmcount,dmdef) = self.getAllDataMemberInfo()
-        (urcount,allurefs) = self.getAllURefInfo()
+        (transcount,urtrans) = self.getAllURefTransitions()
+        (urcount,allurefs,urefnames) = self.getAllURefInfo()
+        if transcount == 0:
+            urtrans = "0 // DUMMY NOT USED\n"
         abname = self.cppMangledName("AllBases")
         dmname = self.cppMangledName("AllDataMembers")
         urname = self.cppMangledName("AllURefs")
+        urdebugname = self.cppMangledName("AllURefNames")
+        urtname = self.cppMangledName("AllURefTransitions")
         print(f"""  static const u16 {abname}[] = {{
 {abdef}  }};
 """)        
-        print(f"""  static const UClassDataMember {dmname}[] = {{
+        print(f"""  static const UClassDataMember {dmname}[{str(dmcount) if dmcount > 0 else ""}] = {{
 {dmdef}  }};
 """)
-        print(f"""  static const URefDescriptor {urname}[] = {{
-{allurefs}  }};
+        print(f"""  static const URefDescriptor {urname}[{str(urcount) if urcount > 0 else ""}] = {{
+ //stg mci efs pos siz 1sl #sl
+{allurefs} }};
+""")
+        print(f"""  static const char (*{urdebugname}[{str(urcount) if urcount > 0 else ""}]) = {{
+{urefnames}  }};
+""")
+
+        print(f"""  static const u8 {urtname}[{str(transcount) if transcount > 0 else ""}] = {{
+{urtrans}  }};
+""")
+        print(f"""
   static UClass {self.cppMangledName("")}(
     /*uclassid*/  {self.uclassid}u,
     /*ucname*/    "{self.ucname}",
@@ -271,7 +291,10 @@ class UClass:
     /*alldmembs*/ {dmname},
     /*dmcount*/   {dmcount},
     /*alluref*/   {urname},
-    /*urefcount*/ {urcount}
+    /*urefnames*/ {urdebugname},
+    /*urefcount*/ {urcount},
+    /*ureftrans*/ {urtname},
+    /*transcount*/ {transcount}
         );
  """)
 

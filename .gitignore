@@ -4,6 +4,7 @@
 *.o
 
 *__pycache__*
+.venv
 
 # Compiled Dynamic libraries
 *.so

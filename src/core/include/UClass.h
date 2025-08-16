@@ -13,6 +13,7 @@ namespace MFM {
     const u8 mPosition;
     const u8 mSize;
   };
+
   struct UClass {
     const u16 mUClassId;
     const char * mName;
@@ -23,7 +24,10 @@ namespace MFM {
     const UClassDataMember * mAllDataMemberList;
     const u16 mAllDataMemberCount;
     const URefDescriptor * mAllURefs;
+    const char ** mURefNames;
     const u16 mURefCount;
+    const u8 * mURefTransitions;
+    const u8 mURefTransitionCount;
     UClass(const u16 cid,
            const char * name,
            const u16 * directBases,
@@ -33,7 +37,10 @@ namespace MFM {
            const UClassDataMember * allMembers,
            const u16 allMemberCount,
            const URefDescriptor * allURefs,
-           const u16 urefcount)
+           const char ** urefnames,
+           const u16 urefcount,
+           const u8 * urefTransitions,
+           const u8 transcount)
       : mUClassId(cid)
       , mName(name)
       , mDirectBaseList(directBases)
@@ -43,18 +50,13 @@ namespace MFM {
       , mAllDataMemberList(allMembers)
       , mAllDataMemberCount(allMemberCount)
       , mAllURefs(allURefs)
+      , mURefNames(urefnames)
       , mURefCount(urefcount)
+      , mURefTransitions(urefTransitions)
+      , mURefTransitionCount(transcount)
     { }
 
   };
-
-#if 0 // SEE URefInfo INSTEAD
-  struct UCMemberInfo {
-    u16 mMemberPosition;        // bit position in stg
-    u16 mMemberSize;            // bit size in stg
-    u16 mMemberClassId;         // concrete classid (effself)
-  };
-#endif
 
 } // end namespace MFM
 

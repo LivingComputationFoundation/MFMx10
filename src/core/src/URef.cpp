@@ -1,7 +1,9 @@
 #include "URef.h"
 #include "Fail.h"
+#include "URefInfo.h"
 
 namespace MFM {
+
   URef URef::getDMURef(u32 dmidx) const {
     FAIL(INCOMPLETE_CODE);
     return *this; // NOT REACHED

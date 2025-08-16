@@ -13,8 +13,21 @@ class URefInfo:
         self.effself = effself        # uclass for virtual method lookups
         self.fromname = fromname      # debugging-ish name for URI
         self.selectURIs = { }         # URI#s of base classes or data members, by bc/dm index
+        self.firstSelectIndex = None # starting position in UClass ureftransitions array
         if isinstance(parenturi,URefInfo):
             parenturi.selectURIs[selectidx] = self
+
+    def generateTransInfo(self,baseidx):
+        self.firstSelectIndex = baseidx
+        count = len(self.selectURIs)
+        if count == 0:
+            return (baseidx,"")
+        ret = f"   // {self.fromname} \n    "
+        for k,v in self.selectURIs.items():
+            ret += f" {v.refnum},"
+            baseidx += 1
+        ret += "\n"
+        return (baseidx,ret)
 
     def summarizeSelectURIs(self):
         ret = ""

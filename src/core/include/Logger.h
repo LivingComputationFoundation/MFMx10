@@ -386,13 +386,21 @@ namespace MFM
           abort(); // Logger is not prepared to handle failures during printing!
         },
         {
-          if (m_includeFlags & INCLUDE_TIMESTAMP) m_sink->Printf("%@",m_timeStamper);
-          if (m_includeFlags & INCLUDE_LEVEL) m_sink->Printf("%s", StrLevel(level));
-          if (m_includeFlags & INCLUDE_SEPARATOR) m_sink->Printf(": ");
+          VreportPrefix(level);
           if (m_includeFlags & INCLUDE_TEXT) m_sink->Vprintf(format, ap);
-          if (m_includeFlags & INCLUDE_NEWLINE) m_sink->Println();
+          VreportSuffix();
         });
       }
+    }
+
+    void VreportPrefix(Level level) {
+      if (m_includeFlags & INCLUDE_TIMESTAMP) m_sink->Printf("%@",m_timeStamper);
+      if (m_includeFlags & INCLUDE_LEVEL) m_sink->Printf("%s", StrLevel(level));
+      if (m_includeFlags & INCLUDE_SEPARATOR) m_sink->Printf(": ");
+    }
+
+    void VreportSuffix() {
+      if (m_includeFlags & INCLUDE_NEWLINE) m_sink->Println();
     }
 
     /**

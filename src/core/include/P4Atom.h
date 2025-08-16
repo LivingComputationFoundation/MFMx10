@@ -66,9 +66,9 @@ namespace MFM {
       BITS = AC::BITS_PER_ATOM,
 
       //////
-      // P4 header configuration: Header is in low-bits end of the bitvector
+      // P4 header configuration: Header is in high-bits end of the bitvector
 
-      P4_ECC_BITS_POS = 0,
+      P4_ECC_BITS_POS = BITS-16,
       P4_ECC_BITS_LEN = 7,
 
       P4_TYPE_BITS_POS = P4_ECC_BITS_POS + P4_ECC_BITS_LEN,
@@ -77,12 +77,12 @@ namespace MFM {
       P4_FIXED_HEADER_POS = P4_ECC_BITS_POS,
       P4_FIXED_HEADER_LEN = P4_ECC_BITS_LEN + P4_TYPE_BITS_LEN,
 
-      P4_STATE_BITS_POS = P4_FIXED_HEADER_POS + P4_FIXED_HEADER_LEN,
-      P4_STATE_BITS_LEN = BITS - P4_STATE_BITS_POS,
+      P4_STATE_BITS_POS = 0,
+      P4_STATE_BITS_LEN = BITS - P4_FIXED_HEADER_LEN,
 
       //////
       // Declarations required by the Atom contract
-      ATOM_FIRST_STATE_BIT = P4_STATE_BITS_POS,
+      ATOM_FIRST_STATE_BIT = 0,
 
       //////
       // Other constants
@@ -170,7 +170,7 @@ namespace MFM {
      */
     u32 EndStateBit() const
     {
-      return BITS;
+      return P4_STATE_BITS_LEN;
     }
 
     void WriteStateBitsImpl(ByteSink& ostream) const
