@@ -1,4 +1,4 @@
-{82}  -*-  mode: text; fill-column: 50;  -*-
+{96}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Mon Jul 21 15:12:27 2025 OK so I've lost myself in
@@ -1386,7 +1386,71 @@ of my prior work, by merging existing emacs
 buffers with files pulled from lcf5820c.
 
 There's what two hours I won't be getting back.
+[82:
 
+Thu Aug 14 14:36:55 2025 OK everything's committed
+and pushed.. I think.. Let's hack up at MFMx10/src
+
+[83:
+
+Thu Aug 14 15:01:15 2025 Well, it seems like
+
+      struct URef {
+        u8 mStgId;
+        u8 mRefNum;
+
+        u16 getURefRaw() const { return (((u16) mStgId)<<8u) | mRefNum; }
+        u8 getURefStgId() const { return mStgId; }
+        u8 getURefNumber() const { return mRefNum; }
+ ..
+
+is just working 'fine', which seems suspiciously
+easy but we shall see.
+
+So the claim is we're now thinking the uref
+transition stuff could be all bytes, and in fact
+we're thinking uclassid is going to be 8b too,
+despite the fact that we're doing 9 bit 2D parity
+to protect it.[84:
+
+Thu Aug 14 16:08:50 2025 So dammit, once again,
+how shall we represent the uref transitions?
+
+[85:
+
+Thu Aug 14 16:10:54 2025 Now if we're saying there
+can't be more than 8b of refnum (per stgid) does
+that allow us to bound the total number of
+transitions (per stgid) in any useful way?
+
+Worth thinking of a sparse 2D matrix for all the
+transitions, instead of separate 1Ds all over the
+place? [86:
+
+Fri Aug 15 03:26:21 2025 OK, so theoretically the
+generated C++ code now has enough information that
+we could implement uref select transitions.. But I
+think more nap first.
+[87:
+
+Fri Aug 15 07:21:20 2025 Ummm. We extended
+URefDescriptor to include 'mTransCount', so we
+knew how many valid transitions there were.. but
+how do we know where this URefDescriptor's
+transitions start in UClass::mURefTransitions?
+Don't we need yet another byte in URefDescriptor,
+at least, for that?
+
+:87]
+:86]
+
+:85]
+
+:84]
+
+:83]
+
+:82]
 :81]
 
 
@@ -1414,3 +1478,110 @@ There's what two hours I won't be getting back.
 :68]
 
 :67]
+[88:
+
+Fri Aug 15 10:01:35 2025 Well OK! We have
+transitioned a URef successfully across two steps: 
+
+    215: MSG: UR2/0 = 'EltWithAQFoo.EltWithAQFoo*' stg 15, stat 15, eff 15, pos 0, siz 19, 1sl 0, #sl 3
+    216: MSG: UR2/1 = 'EltWithAQFoo!' stg 15, stat 15, eff 15, pos 0, siz 18, 1sl 3, #sl 3
+    217: MSG: UR2/8 = 'mCounter' stg 15, stat 3, eff 3, pos 10, siz 7, 1sl 11, #sl 0
+
+ending up with a ur that we ought to be able to
+read from and write to mCounter with.[89:
+
+Fri Aug 15 23:56:17 2025 OK been working on URef
+read and write, and realizing that we need
+P4Atom-based storage to get serious about
+offsetting the bits past the atom header.[90:
+
+Sat Aug 16 00:21:40 2025 Looking around I think we
+need to offset past the atom header late, during
+a URef access, rather than during URef generation
+time. Because we can easily have an Element (say
+for simplicity) sitting in an atom, or sitting in
+a transient (maybe), and we think we'd like to
+avoid having an atom header in a context where the
+element type is known at compile time.[91:
+
+Sat Aug 16 00:45:23 2025 Now it's seeming like we
+might not offset the pos until as late as read and
+write time? Is that possible?[92:
+
+Sat Aug 16 00:46:59 2025 Aaaaaand, as long as
+we're sitting here talking about this: Couldn't we
+make the P4Atom atom header go at the end of the
+atom instead of the beginning, and dispense with
+all this offseting business entirely?[93:
+
+Sat Aug 16 10:05:10 2025 OK, well, we've
+
+ - moved the atom header to the end of the P4 atom
+   without too much trouble or downside so far,
+   and
+
+ - read EltWithAQFoo.mCounter successfully, and
+   incremented and wrote it back successfully.
+
+So we're close to some more to-do, I'd think,
+here.
+
+Before we move on, though, I'm wondering if I can
+get rid of the AbstractBitVector level that I just
+introduced, in favor of a little bit more
+templating to handle the various bitvector sizes.
+
+I guess part of the question is How Much More
+templating would we actually be talking about.
+[94:
+
+Sat Aug 16 10:21:15 2025 I guess we'd template
+
+    u32 readBitsRaw32(URef ur) const ;
+    u64 readBitsRaw64(URef ur) const ;
+    void writeBitsRaw32(URef ur, u32 newval) const ;
+    void writeBitsRaw64(URef ur, u64 newval) const ;
+
+and/or change this
+
+    AbstractBitVector & getURefAccessOrFail(URef ur, URefDescriptor & urd) const ;
+
+to this
+
+    template <u32 BITS>
+    BitVector<BITS> & getURefAccessOrFail(URef ur, URefDescriptor & urd) const ;
+
+and then have the read/write routines switch on BITS?
+
+  u32 readBitsRaw32(URef ur) const {
+    const URefDescriptor * purd = getURefDescriptor(ur);
+    MFM_API_ASSERT_NONNULL(purd);
+
+    switch (getStgType(ur.getURefStgId())) {
+    case UCStgType::UCST_EWS: {
+      P4Atom & p4 = theEW.getAtom(stgid);
+      return p4.GetStateField(purd->mPosition,purd->mSize);
+    }
+
+    }
+
+[95:
+
+Sat Aug 16 10:28:18 2025 Well, not sure how clean
+we can make it but I think I should commit this
+'working' ABV implementation before I tear it all
+out. 
+
+:95]
+:94]
+:93]
+
+:92]
+
+:91]
+
+:90]
+
+:89]
+
+:88]
