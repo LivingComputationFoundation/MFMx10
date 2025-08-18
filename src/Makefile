@@ -10,7 +10,7 @@ ifeq ($(PLATFORM),tile)
 SUBDIRS=platform-$(MFM_TARGET) core sim gui t2lib drivers
 else
 #SUBDIRS=platform-$(MFM_TARGET) core elements sim gui test drivers
-SUBDIRS=platform-$(MFM_TARGET) core spikes
+SUBDIRS=platform-$(MFM_TARGET) core bh spikes
 endif
 
 .PHONY:	$(SUBDIRS) all clean realclean run

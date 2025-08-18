@@ -53,8 +53,8 @@
 // g++ -O3 RandMT.cc -o RandMT
 //
 
-#include <iostream>
-#include <cstdlib>
+//#include <iostream>
+//#include <cstdlib>
 
 // To keep this all as one file (easier distribution) the class is
 // in the code, cut'n'paste this bit to create a .h for use in

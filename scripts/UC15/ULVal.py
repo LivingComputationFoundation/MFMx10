@@ -20,7 +20,7 @@ class ULVal:
         if siz is None: die(f"NEEDED SIZ BY NOW: {self}")
         if self.isprim:
             eprint(f"XXXXGOTCALLED {self}")
-            raise Exception("BONGO")
+            #raise Exception("BONGO")
             uri = URefInfo.URefInfo(stguclass,
                                     pos, siz,
                                     membclass,

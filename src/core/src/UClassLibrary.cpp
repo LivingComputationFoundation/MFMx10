@@ -3,51 +3,71 @@
 #include "BitVector.h"
 
 namespace MFM {
-  AbstractBitVector * UClassLibrary::getABV(u32 stgid) const {
-    AbstractBitVector *abv = 0;
-    switch (getStgType(stgid)) {
-    case UCStgType::UCST_EWS:
-      {
-        P4Atom & p4 = theEW.getAtom(stgid);
-        abv = &p4.GetBits();
-        break;
-      }
-    default:     FAIL(INCOMPLETE_CODE);
-    }
-    return abv;
-  }
+  UClassLibrary theUCL;
 
-  AbstractBitVector & UClassLibrary::getURefAccessOrFail(URef ur, URefDescriptor & urd) const {
+  template<u32 BITS>
+  BitVector<BITS> & UClassLibrary::getURefAccessOrFail(URef ur, URefDescriptor & urd) const {
     const URefDescriptor * purd = getURefDescriptor(ur);
     MFM_API_ASSERT_NONNULL(purd);
+    FAIL(INCOMPLETE_CODE);
+    /*
     AbstractBitVector * pabv = getABV(ur.getURefStgId());
     MFM_API_ASSERT_NONNULL(pabv);
     urd = *purd;
     return *pabv;
+    */
   }
 
   u32 UClassLibrary::readBitsRaw32(URef ur) const {
-    URefDescriptor urd;
-    AbstractBitVector & abv = getURefAccessOrFail(ur, urd);
-    return abv.read32(urd.mPosition,urd.mSize);
+    const URefDescriptor urd = getURefDescriptorOrFail(ur);
+    u32 stgid = ur.getURefStgId();
+    switch (getStgType(stgid)) {
+    case UCStgType::UCST_EWS: {
+      P4Atom & p4 = theEW.getAtom(stgid);
+      return p4.GetStateField(urd.mPosition,urd.mSize);
+    }
+    default: break;
+    }
+    FAIL(INCOMPLETE_CODE);
   }
 
   u64 UClassLibrary::readBitsRaw64(URef ur) const {
-    URefDescriptor urd;
-    AbstractBitVector & abv = getURefAccessOrFail(ur, urd);
-    return abv.read64(urd.mPosition,urd.mSize);
+    const URefDescriptor urd = getURefDescriptorOrFail(ur);
+    u32 stgid = ur.getURefStgId();
+    switch (getStgType(stgid)) {
+    case UCStgType::UCST_EWS: {
+      P4Atom & p4 = theEW.getAtom(stgid);
+      return p4.GetStateField64(urd.mPosition,urd.mSize);
+    }
+    default: break;
+    }
+    FAIL(INCOMPLETE_CODE);
   }
 
   void UClassLibrary::writeBitsRaw32(URef ur, u32 newval) const {
-    URefDescriptor urd;
-    AbstractBitVector & abv = getURefAccessOrFail(ur, urd);
-    abv.write32(urd.mPosition,urd.mSize,newval);
+    const URefDescriptor urd = getURefDescriptorOrFail(ur);
+    u32 stgid = ur.getURefStgId();
+    switch (getStgType(stgid)) {
+    case UCStgType::UCST_EWS: {
+      P4Atom & p4 = theEW.getAtom(stgid);
+      return p4.SetStateField(urd.mPosition,urd.mSize,newval);
+    }
+    default: break;
+    }
+    FAIL(INCOMPLETE_CODE);
   }
 
   void UClassLibrary::writeBitsRaw64(URef ur, u64 newval) const {
-    URefDescriptor urd;
-    AbstractBitVector & abv = getURefAccessOrFail(ur, urd);
-    abv.write64(urd.mPosition,urd.mSize,newval);
+    const URefDescriptor urd = getURefDescriptorOrFail(ur);
+    u32 stgid = ur.getURefStgId();
+    switch (getStgType(stgid)) {
+    case UCStgType::UCST_EWS: {
+      P4Atom & p4 = theEW.getAtom(stgid);
+      return p4.SetStateField64(urd.mPosition,urd.mSize,newval);
+    }
+    default: break;
+    }
+    FAIL(INCOMPLETE_CODE);
   }
 
   ByteSink& UClassLibrary::reportURef(URef ur, ByteSink& bs) {
@@ -78,6 +98,11 @@ namespace MFM {
   void UClassLibrary::takeEW(EW& ew) {
     MFM_API_ASSERT_NULL(mEW);
     mEW = &ew;
+  }
+
+  UClass * UClassLibrary::getUClass(UClassId ucid) const {
+    if (ucid >= mUClassCount) return 0;
+    return mAllUClasses[ucid];
   }
 
   UClass * UClassLibrary::getCurrentEWUClass(u16 sitenum) const {

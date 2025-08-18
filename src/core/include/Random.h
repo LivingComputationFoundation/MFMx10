@@ -33,7 +33,7 @@
 
 #include "itype.h"
 #include "RandMT.h"
-#include "BitVector.h"
+//#include "BitVector.h"
 #include "FXP.h"
 #include "Fail.h"
 #include "Util.h" // For UForNumber
@@ -53,7 +53,8 @@ namespace MFM
      */
     Random()
     {
-      static u32 counter = (u32) time(NULL);
+      //      static u32 counter = (u32) time(NULL);
+      static u32 counter = (u32) 0;
       SetSeed(++counter);
     }
 

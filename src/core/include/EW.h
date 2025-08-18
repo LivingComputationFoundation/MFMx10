@@ -17,6 +17,7 @@ namespace MFM {
       MFM_API_ASSERT_ARG(site < 42);
       return mSites[site].mSiteAtom;
     }
+    void doEvent() ;
   };
 
   extern EW theEW;

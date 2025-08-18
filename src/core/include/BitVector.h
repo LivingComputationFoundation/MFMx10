@@ -37,6 +37,7 @@
 
 namespace MFM {
 
+  /*
   class AbstractBitVector {
   public:
     virtual u32 read32(u32 pos, u8 siz) const = 0;
@@ -45,6 +46,7 @@ namespace MFM {
     virtual void write64(u32 pos, u8 size, u64 newval) = 0;
     virtual ~AbstractBitVector() { }
   };
+  */
 
   template <class EC> class BitRef; // FORWARD
 
@@ -62,7 +64,7 @@ namespace MFM {
    * may be other issues.
    */
   template <u32 B>
-  class BitVector : public AbstractBitVector
+  class BitVector
   {
   public:
     enum {
@@ -85,10 +87,10 @@ namespace MFM {
     }
 
     // ABSTRACTBITVECTOR API
-    virtual u32 read32(u32 pos, u8 siz) const { return Read(pos, siz); }
-    virtual u64 read64(u32 pos, u8 siz) const { return ReadLong(pos, siz); }
-    virtual void write32(u32 pos, u8 siz, u32 newval) { Write(pos,siz,newval); }
-    virtual void write64(u32 pos, u8 siz, u64 newval) { WriteLong(pos,siz,newval); }
+    u32 read32(u32 pos, u8 siz) const { return Read(pos, siz); }
+    u64 read64(u32 pos, u8 siz) const { return ReadLong(pos, siz); }
+    void write32(u32 pos, u8 siz, u32 newval) { Write(pos,siz,newval); }
+    void write64(u32 pos, u8 siz, u64 newval) { WriteLong(pos,siz,newval); }
 
     typedef u32 BitUnitType;
     static const u32 BITS_PER_UNIT = sizeof(BitUnitType) * CHAR_BIT;

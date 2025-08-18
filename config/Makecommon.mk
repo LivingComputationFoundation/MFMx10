@@ -27,7 +27,7 @@ include $(BASEDIR)/src/platform-$(MFM_TARGET)/MakePlatform.mk
 # not when I build locally! :( Gah!  See 'EXTRA DEFINES', below.  Drop
 # the override bomb!)
 override INCLUDES+=$(EXTERNAL_INCLUDES)
-override INCLUDES+=-I $(BASEDIR)/gen -I include
+override INCLUDES+=-I $(BASEDIR)/gen -I include -I $(BASEDIR)/src/core/include -I $(BASEDIR)/src/bh/include
 
 ### EXTRA DEFINES
 # Argh, DEFINES is seen as user-set and make is ignoring our changes.

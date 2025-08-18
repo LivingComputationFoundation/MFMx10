@@ -86,7 +86,9 @@ namespace MFM {
 
       //////
       // Other constants
-      P4_TYPE_COUNT = 1<<P4_TYPE_BITS_LEN
+      P4_TYPE_COUNT = 1<<P4_TYPE_BITS_LEN,
+
+      ATOM_INACCESSIBLE_TYPE = (1u<<P4_TYPE_BITS_LEN)-1u, // max type num
 
     };
 
@@ -209,6 +211,16 @@ namespace MFM {
     }
 
     /**
+     * Read stateWidth state bits starting at stateIndex, which counts
+     * toward the right with 0 meaning the leftmost state bit.
+     */
+    u64 GetStateField64(u32 stateIndex, u32 stateWidth) const
+    {
+      MFM_API_ASSERT_ARG(stateWidth <= P4_STATE_BITS_LEN);
+      return this->m_bits.ReadLong(P4_STATE_BITS_POS + stateIndex, stateWidth);
+    }
+    
+    /**
      * Store value into stateWidth state bits starting at stateIndex,
      * which counts toward the right with 0 meaning the leftmost state
      * bit.
@@ -217,6 +229,17 @@ namespace MFM {
     {
       MFM_API_ASSERT_ARG(stateWidth <= P4_STATE_BITS_LEN);
       return this->m_bits.Write(P4_STATE_BITS_POS + stateIndex, stateWidth, value);
+    }
+
+    /**
+     * Store value into stateWidth state bits starting at stateIndex,
+     * which counts toward the right with 0 meaning the leftmost state
+     * bit.
+     */
+    void SetStateField64(u32 stateIndex, u32 stateWidth, u64 value)
+    {
+      MFM_API_ASSERT_ARG(stateWidth <= P4_STATE_BITS_LEN);
+      return this->m_bits.WriteLong(P4_STATE_BITS_POS + stateIndex, stateWidth, value);
     }
 
     void PrintBits(ByteSink & ostream) const

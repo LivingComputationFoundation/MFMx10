@@ -13,13 +13,21 @@ namespace MFM {
   public:
     UClassLibrary() ;
 
+    UClass * getUClass(UClassId ucid) const ;
+
     UClass * getCurrentEWUClass(u16 storageid) const ;
 
     UClass * getCurrentStorageUClass(u16 storageid) const ;
 
     const URefDescriptor * getURefDescriptor(URef ur) const ;
+    const URefDescriptor getURefDescriptorOrFail(URef ur) const {
+      const URefDescriptor * purd = getURefDescriptor(ur);
+      MFM_API_ASSERT_NONNULL(purd);
+      return *purd;
+    }
 
-    AbstractBitVector & getURefAccessOrFail(URef ur, URefDescriptor & urd) const ;
+    template <u32 BITS>
+    BitVector<BITS> & getURefAccessOrFail(URef ur, URefDescriptor & urd) const ;
 
     UClass * getStaticUClass(URef ur) ;
     UClass * getEffectiveClass(URef ur) ;
@@ -47,7 +55,7 @@ namespace MFM {
       return ret;
     }
 
-    AbstractBitVector * getABV(u32 stgid) const ;
+    //AbstractBitVector * getABV(u32 stgid) const ;
 
     URef selectURef(URef ur, u32 idx) const ;
 
@@ -75,7 +83,11 @@ namespace MFM {
     UClass ** mAllUClasses;
   };
 
+  extern UClassLibrary theUCL;
+
 } // end namespace MFM
+
+
 
 #endif /* UCLASSLIBRARY_H */
 

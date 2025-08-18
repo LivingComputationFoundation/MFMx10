@@ -75,5 +75,6 @@ ulam_checkvar:
 #LIBS := -L $(ULAM_BLD_DIR) -l culam $(LIBS)
 
 override LIBS += -L $(BASEDIR)/build/core -l mfmcore
+override LIBS += -L $(BASEDIR)/build/bh -l mfmbh
 
 .PHONY:	$(PHONY_TARGETS)

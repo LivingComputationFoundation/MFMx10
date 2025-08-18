@@ -11,6 +11,7 @@
 
 namespace MFM {
   namespace Utils {
+
     u64 GetDateTimeNow()
     {
       time_t t;
