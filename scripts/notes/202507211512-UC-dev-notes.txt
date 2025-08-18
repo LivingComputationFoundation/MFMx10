@@ -1,4 +1,4 @@
-{96}  -*-  mode: text; fill-column: 50;  -*-
+{102}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Mon Jul 21 15:12:27 2025 OK so I've lost myself in
@@ -1585,3 +1585,106 @@ out.
 :89]
 
 :88]
+[96:
+
+Sat Aug 16 11:05:47 2025 OK we tore out
+AbstractBitVector and got the minimal uref access
+case working again. And hmm, in the last build we
+saved some bytes -
+
+    1755363848 157636 9702 2124 169462 295f6 ../../../bin/riscv10
+    1755363914 153560 9310 1952 164822 283d6 ../../../bin/riscv10
+
+4KB less or so? Have to go back to.. like here
+
+    1755277477 150720 9218 2624 162562 27b02 ../../../bin/riscv10
+    1755298102 154108 9546 2124 165778 28792 ../../../bin/riscv10
+
+to get smaller than that?
+
+:96]
+[97:
+
+Sat Aug 16 13:30:32 2025 So, are we getting kind
+of close to reaching for 'baby P4 events'? I guess
+the main question is how do we write/link to the
+actual transition code?[98:
+
+Sat Aug 16 13:37:55 2025 And I guess the idea
+there is, for starters, the generated code would
+just assume the existence of some magically-named
+behave() method, and we'd need to write and link
+against code supplying at least stubs for them, or
+the build fails.
+
+So we need a 'native code API' of some sort.
+
+  void behave_CLASSNAME(UClassLibrary  & ucl, URef self) {
+    FAIL(INCOMPLETE_CODE);
+  }
+
+Could we automatically generates stubs for all of
+them and have some weak reference stuff defer to
+explicit implementations if they exist?
+
+We could make a C++ class per UClass and use
+virtual functions. We've avoided that road so far
+in MFMx10, though.[99:
+
+Sat Aug 16 15:21:43 2025 Or I guess function
+pointers is the older school route.. I guess we
+could have a Native object or something, with a
+ctor that would register a function at some given
+uclassid at startup time.. and if a given class
+doesn't get registered, its behave defaults to
+FAIL or perhaps silently do nothing. Ought to be
+FAIL though we think..
+
+:99]
+
+:98]
+
+:97]
+[100:
+
+Sun Aug 17 12:58:33 2025 OK, well, that was a bit
+of a shocker.. I'm making 'SimNoC' to simulate
+having event windows come in to be processed and
+returned, and I finally got far enough to pick a
+random x,y site to try an event at, but when I got
+the new code to build, the overall program size
+suddenly went from <200KB to >800KB, and most of
+my 1MB target size was suddenly gone:
+
+    1755451929 154800 9566 20984 185350 2d406 ../../../bin/riscv10 "Sun 17 Aug 2025 11:32:09 AM MDT"
+    1755452083 155044 9594 20984 185622 2d516 ../../../bin/riscv10 "Sun 17 Aug 2025 11:34:43 AM MDT"
+    1755453561 155044 9594 20984 185622 2d516 ../../../bin/riscv10 "Sun 17 Aug 2025 11:59:21 AM MDT"
+    1755453591 669120 157123 27764 854007 d07f7 ../../../bin/riscv10 "Sun 17 Aug 2025 11:59:51 AM MDT"
+
+[101:
+
+Sun Aug 17 13:03:41 2025 And it took around an
+hour, it looks like, to run down the cause, which
+was one or both of these two line inside
+src/core/src/randmt.cpp:
+
+    #include <iostream>
+    #include <cstdlib>
+
+neither of which appear necessary for randmt and
+friends to build, and they are now commented out,
+and now we're back(ish) to
+
+    1755457377 156796 9806 23528 190130 2e6b2 ../../../bin/riscv10 "Sun 17 Aug 2025 01:02:57 PM MDT"
+
+so <200KB, and we can use random numbers as well..
+
+I was like holy shit, how can Mersenne Twister be
+so fucking huge?
+
+Forget it, Jake. It's iostream.
+
+:101]
+
+
+:100]
