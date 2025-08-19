@@ -14,8 +14,8 @@ namespace MFM {
   struct SimNoC {
 #if 1
     enum {
-      WORLD_WIDTH = 40,
-      WORLD_HEIGHT = 30
+      WORLD_WIDTH = 60,
+      WORLD_HEIGHT = 40
     };
     P4Atom mWorld[WORLD_WIDTH][WORLD_HEIGHT];
 
