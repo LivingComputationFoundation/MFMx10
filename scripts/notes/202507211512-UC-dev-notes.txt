@@ -1,4 +1,4 @@
-{107}  -*-  mode: text; fill-column: 50;  -*-
+{109}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Mon Jul 21 15:12:27 2025 OK so I've lost myself in
@@ -1822,6 +1822,20 @@ email from tenstorrent..[106:
 
 Tue Aug 19 08:43:49 2025 The blackhole quietbox is
 apparently now in Albuquerque, as of 7:21AM..
+
+[107:
+
+Thu Aug 21 00:29:34 2025 Aaaaand now the blackhole
+quietbox is sitting next to me here in the
+toolroom, running fine and very very quietly.[108:
+
+Fri Aug 22 08:57:48 2025 OK, so I'm going to start
+trying to build this code on roses-bh. One last
+commit to move the files.
+
+:108]
+
+:107]
 
 :106]
 
