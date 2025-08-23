@@ -35,7 +35,7 @@ codelog.txt
 *.ppm
 
 # Don't track spikes for now
-spikes/
+# yes, do, WAS: spikes/
 
 # Don't need the generated *.inc files
 src/elements/include/StdElements.inc

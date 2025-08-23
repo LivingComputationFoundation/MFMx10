@@ -1,0 +1,86 @@
+# -*- mode: conf-toml; -*-
+# Tue Jun 24 07:09:01 2025 First whack at 'babulam' declarations
+
+[Config]
+
+[Class.Empty]
+  is = [ UrSelf ]
+
+[Class.Y2]
+  has.mDatay2 = [ Y3 ]
+  has.mBool = [ Bool, 3 ]
+
+[Class.Y3]
+  is = [ QDebug ]
+  has.mDatay3 = [ Y4 ]
+  has.mUnsg = [ Unsigned, 5 ]
+
+[Class.Y4]
+  has.mDatay4 = [ Y5 ]
+
+[Class.Y5]
+  has.mDatay5 = [ Int, 25 ]
+
+[Class.YOU]
+  has.mDatayou = [ Y2 ]
+  has.mInt = [Int]
+
+[Class.ME ]
+  has.mData = [ YOU ]
+  has.mInt = [Int, 17]
+
+[Class.UrSelf]
+  does.behave = [ ]
+  does.getColor = [ [a, r, g, b], [s] ]
+
+[Class.QDebug]
+  type = quark    # default?
+#  is = UrSelf    # default
+  has.mEnable =[ Bool ]  # default size 1
+
+[Class.QFoo]
+  is = QDebug
+  has.mDataqfoo = [ Unsigned, 9 ]
+
+[Class.QBar]
+  is = UrSelf
+  has.mDongo = [ Bool, 3 ]
+
+[Class.EltWithAQFoo]
+  type = element
+  is = [ QDebug, UrSelf ]
+  has.mQFoo = [ QFoo ]
+  has.mCounter = [ Int, 20 ]
+  has.mBool = [ Bool ]
+  does.func1 = [ yo ]
+  does.func2 = [ bro ]
+  
+[Class.BigTrans]
+  type = transient
+  is = [ QDebug, QBar ]
+  has.mElt = [ EltWithAQFoo ]
+  has.mOtherElt = [ DReg ]
+  has.mStillOtherElt = [ Sorter ]
+
+[Class.DReg]
+  type = element
+  is = [ QFoo, QDebug ]
+
+[Class.Res]
+  doc = "poop"
+  type = element
+
+[Class.Sorter]
+  type = element
+  is = [ QDebug ]
+  has.mData = [ Int, 32]
+
+[Class.Input]
+  type = element
+  is = UrSelf
+
+[Class.Output]
+  type = element
+
+  
+

@@ -1,0 +1,21 @@
+# -*- mode: conf-toml; -*-
+# Tue Jun 24 07:09:01 2025 First whack at 'babulam' declarations
+
+[Config]
+
+[Class.A]
+  is = [ UrSelf]
+  has.mb = [ Bool, 13 ]
+  has.mC = [ C ]
+
+[Class.B]
+  is = [ C, D ]
+  has.mU = [ Unsigned, 3 ]
+
+[Class.C]
+  is = [ D ]
+  has.mI = [Int, 5 ]
+
+[Class.D]
+  is = [ UrSelf ]
+  has.mUU = [ Unsigned, 9 ]
